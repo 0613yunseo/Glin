@@ -1,0 +1,125 @@
+import React, { useState } from "react";
+import { useNavigate } from "react-router";
+import { Moon, Sun, User, Settings, LogOut, Menu } from "lucide-react";
+import { useTheme } from "../../context/ThemeContext";
+import { GlinLogo } from "../GlinLogo";
+
+interface HeaderProps {
+  onMenuClick: () => void;
+}
+
+export function Header({ onMenuClick }: HeaderProps) {
+  const { theme, toggleTheme } = useTheme();
+  const navigate = useNavigate();
+  const [profileOpen, setProfileOpen] = useState(false);
+
+  const handleLogout = () => {
+    setProfileOpen(false);
+    navigate("/login");
+  };
+
+  return (
+    <header
+      className="flex items-center bg-[var(--card)] border-b border-[var(--border)] flex-shrink-0 relative z-10 w-full"
+      style={{ height: 56 }}
+    >
+      {/* Left: hamburger + logo on mobile */}
+      <div className="flex items-center flex-shrink-0">
+        <button
+          className="md:hidden flex items-center justify-center w-14 h-14 text-muted-foreground hover:text-foreground transition-colors"
+          onClick={onMenuClick}
+          aria-label="메뉴 열기"
+        >
+          <Menu size={20} />
+        </button>
+        {/* GLIN logo — mobile only */}
+        <div className="md:hidden">
+          <GlinLogo size="md" />
+        </div>
+      </div>
+
+      {/* Spacer — pushes right actions to edge */}
+      <div className="flex-1" />
+
+      {/* Right: theme toggle + profile */}
+      <div className="flex items-center gap-1 px-3">
+        {/* Theme toggle — icon only on mobile, icon+text on sm+ */}
+        <button
+          onClick={toggleTheme}
+          className="flex items-center justify-center gap-2 w-11 h-11 md:w-auto md:h-auto md:px-3 md:py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
+          aria-label={theme === "light" ? "야간 모드" : "밝은 모드"}
+        >
+          {theme === "light" ? (
+            <>
+              <Moon size={18} className="md:hidden" />
+              <Moon size={14} className="hidden md:inline" />
+              <span className="hidden md:inline text-xs font-medium">야간 모드</span>
+            </>
+          ) : (
+            <>
+              <Sun size={18} className="md:hidden" />
+              <Sun size={14} className="hidden md:inline" />
+              <span className="hidden md:inline text-xs font-medium">밝은 모드</span>
+            </>
+          )}
+        </button>
+
+        {/* Profile dropdown */}
+        <div className="relative">
+          <button
+            onClick={() => setProfileOpen((v) => !v)}
+            className="flex items-center gap-2 pl-1.5 pr-1.5 md:pr-3 py-1.5 rounded-xl hover:bg-muted transition-all group min-h-[44px]"
+          >
+            <div
+              className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
+              style={{ background: "var(--glin-accent-gradient)" }}
+            >
+              김
+            </div>
+            <span className="text-sm font-medium text-foreground hidden md:inline">
+              김민준
+            </span>
+          </button>
+
+          {profileOpen && (
+            <>
+              <div
+                className="fixed inset-0 z-40"
+                onClick={() => setProfileOpen(false)}
+              />
+              <div className="absolute right-0 top-full mt-2 w-52 rounded-xl bg-[var(--card)] border border-[var(--border)] shadow-lg z-50 overflow-hidden py-1">
+                <div className="px-4 py-3 border-b border-[var(--border)]">
+                  <p className="text-sm font-semibold text-foreground">김민준</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">minjun@glin.ai</p>
+                </div>
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-muted transition-colors text-left min-h-[44px]"
+                  onClick={() => { setProfileOpen(false); navigate("/settings"); }}
+                >
+                  <User size={14} className="text-muted-foreground" />
+                  내 계정
+                </button>
+                <button
+                  className="w-full flex items-center gap-3 px-4 py-3 text-sm text-foreground hover:bg-muted transition-colors text-left min-h-[44px]"
+                  onClick={() => { setProfileOpen(false); navigate("/settings"); }}
+                >
+                  <Settings size={14} className="text-muted-foreground" />
+                  설정
+                </button>
+                <div className="border-t border-[var(--border)] mt-1 pt-1">
+                  <button
+                    className="w-full flex items-center gap-3 px-4 py-3 text-sm text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors text-left min-h-[44px]"
+                    onClick={handleLogout}
+                  >
+                    <LogOut size={14} />
+                    로그아웃
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </header>
+  );
+}
