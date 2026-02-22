@@ -17,3 +17,4 @@ export {
   generateTextStream,
   isGeminiAvailable,
 } from "./gemini";
+export { supabase, isSupabaseConfigured } from "./supabase";
