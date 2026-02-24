@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   User,
   Brain,
@@ -21,6 +21,7 @@ import {
   CheckCircle2,
 } from "lucide-react";
 import { useTheme } from "@/context/ThemeContext";
+import { api, UserProfile } from "@/lib/api";
 
 // ─── Toggle component ─────────────────────────────────────────────────────────
 interface ToggleProps {
@@ -120,6 +121,12 @@ function StatusBadge({ label, variant }: BadgeProps) {
 export default function SettingsPage() {
   const { theme, toggleTheme } = useTheme();
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // User details
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
 
   // Core
   const [deterministicDefault, setDeterministicDefault] = useState(true);
@@ -144,14 +151,62 @@ export default function SettingsPage() {
   const pathValidationEnabled = true;
   const pdfOnlyPolicy = true;
 
-  // Account
-  const [name, setName] = useState("김민준");
-  const [email, setEmail] = useState("minjun@glin.ai");
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        setLoading(true);
+        const user = await api.getMe();
+        setName(user.name);
+        setEmail(user.email);
+        setError(null);
+      } catch (err) {
+        console.error("Failed to fetch user:", err);
+        setError("사용자 정보를 불러올 수 없습니다");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, []);
 
   const handleSave = () => {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
   };
+
+  if (loading) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 md:px-8 py-6 md:py-8 space-y-6">
+        <div>
+          <div className="h-8 w-32 bg-muted rounded-lg animate-pulse mb-2" />
+          <div className="h-4 w-48 bg-muted/60 rounded animate-pulse" />
+        </div>
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className="h-32 w-full bg-muted/30 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="max-w-2xl mx-auto px-4 md:px-8 py-12 text-center">
+        <div className="flex flex-col items-center gap-4">
+          <AlertTriangle className="text-red-500 w-12 h-12" />
+          <h2 className="text-xl font-semibold text-foreground">{error}</h2>
+          <button
+            onClick={() => window.location.reload()}
+            className="px-4 py-2 bg-[var(--glin-accent)] text-white rounded-xl text-sm font-medium hover:opacity-90 transition-opacity"
+          >
+            다시 시도
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-2xl mx-auto px-4 md:px-8 py-6 md:py-8 space-y-5 md:space-y-6">

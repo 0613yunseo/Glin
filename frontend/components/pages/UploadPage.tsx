@@ -14,7 +14,6 @@ import {
   FilePlus,
   Zap,
   HardDrive,
-  FolderOpen,
 } from "lucide-react";
 
 // Google Drive icon
@@ -42,36 +41,6 @@ function NotionIcon() {
     </svg>
   );
 }
-
-const recentDocs = [
-  {
-    id: "1",
-    file_name: "딥러닝 기반 자연어 처리 연구 논문.pdf",
-    updated_at: "2026.02.17",
-    page_count: 34,
-    status: "ready" as const,
-    ingested_at: "2026.02.17 14:32",
-    lines: 847,
-  },
-  {
-    id: "2",
-    file_name: "2025 AI 시장 분석 보고서.pdf",
-    updated_at: "2026.02.15",
-    page_count: 58,
-    status: "ready" as const,
-    ingested_at: "2026.02.15 09:18",
-    lines: 1203,
-  },
-  {
-    id: "3",
-    file_name: "의료 AI 규제 정책 검토 문서.pdf",
-    updated_at: "2026.02.12",
-    page_count: 21,
-    status: "processing" as const,
-    ingested_at: "2026.02.12 16:55",
-    lines: 412,
-  },
-];
 
 type IngestStep = "upload" | "extract" | "ready";
 
@@ -143,6 +112,7 @@ export default function UploadPage() {
       setProgress(0);
       setIngestStep(0);
 
+      // (Conceptual) Ingest simulation
       for (let i = 0; i <= 40; i += 5) {
         await new Promise((r) => setTimeout(r, 60));
         setProgress(i);
@@ -162,7 +132,7 @@ export default function UploadPage() {
 
       setUploading(false);
       setDone(true);
-      setTimeout(() => router.push("/documents/new"), 900);
+      setTimeout(() => router.push("/documents"), 900);
     },
     [router]
   );
@@ -270,7 +240,7 @@ export default function UploadPage() {
               <p className="text-sm text-muted-foreground mb-5">
                 PDF 전용 · 최대 200MB · 로컬 처리
               </p>
-              {/* Feature chips — 2×2 grid on mobile */}
+              {/* Feature chips */}
               <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-4 sm:justify-center w-full sm:w-auto">
                 {[
                   { icon: <Zap size={13} />, label: "평균 처리 12초" },
@@ -318,7 +288,7 @@ export default function UploadPage() {
         </p>
       </div>
 
-      {/* Recent documents */}
+      {/* Recent documents (Mock data removed) */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-foreground">최근 문서</h2>
@@ -330,62 +300,11 @@ export default function UploadPage() {
           </button>
         </div>
 
-        {/* Document cards — stacked on mobile */}
-        <div className="space-y-4">
-          {recentDocs.map((doc) => (
-            <button
-              key={doc.id}
-              onClick={() => router.push(`/documents/${doc.id}`)}
-              className="w-full flex flex-col p-4 rounded-2xl bg-[var(--card)] border border-[var(--border)] hover:border-[var(--glin-accent)]/40 hover:shadow-sm transition-all text-left group"
-            >
-              {/* Top row: icon + name + status */}
-              <div className="flex items-start gap-3 mb-3">
-                <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                  style={{ background: "var(--glin-accent-light)" }}
-                >
-                  <FileText size={18} className="text-[var(--glin-accent)]" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-foreground group-hover:text-[var(--glin-accent)] transition-colors leading-snug mb-1.5">
-                    {doc.file_name}
-                  </p>
-                  <span
-                    className={`inline-flex items-center gap-1 text-xs font-semibold px-2 py-0.5 rounded-full ${doc.status === "ready"
-                      ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                      : doc.status === "processing"
-                        ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                        : "bg-red-100 text-red-600 dark:bg-red-900/30 dark:text-red-400"
-                      }`}
-                  >
-                    {doc.status === "processing" && (
-                      <Loader2 size={9} className="animate-spin" />
-                    )}
-                    {doc.status === "ready" ? "준비됨" : doc.status === "processing" ? "처리중" : "오류"}
-                  </span>
-                </div>
-              </div>
-
-              {/* Meta info row */}
-              <div className="flex items-center gap-4 mb-3 pl-[52px]">
-                <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                  <Clock size={11} /> {doc.updated_at}
-                </span>
-                <span className="text-xs text-muted-foreground">{doc.page_count}페이지</span>
-                {doc.lines > 0 && (
-                  <span className="text-xs text-muted-foreground">
-                    {doc.lines.toLocaleString()}줄
-                  </span>
-                )}
-              </div>
-
-              {/* Full-width view button */}
-              <div className="w-full flex items-center justify-center gap-2 py-3 rounded-xl bg-[var(--glin-accent-light)] text-[var(--glin-accent)] text-sm font-semibold">
-                문서 보기
-                <ChevronRight size={14} />
-              </div>
-            </button>
-          ))}
+        {/* Empty state UI */}
+        <div className="py-12 border border-[var(--border)] border-dashed rounded-2xl bg-[var(--card)] flex flex-col items-center justify-center text-center">
+          <FileText size={32} className="text-muted-foreground/30 mb-3" />
+          <p className="text-sm font-medium text-muted-foreground">최근 문서가 없습니다.</p>
+          <p className="text-xs text-muted-foreground/60 mt-1">파일을 업로드하여 분석을 시작해보세요.</p>
         </div>
       </div>
     </div>

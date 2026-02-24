@@ -14,115 +14,79 @@ import {
   Anchor,
   AlignLeft,
   FileText,
+  Loader2,
+  AlertCircle,
 } from "lucide-react";
 import { ExtractionStatus } from "../documents/ExtractionStatus";
 import type { ExtractionStepKey, StepStatus } from "../documents/ExtractionStatus";
-
-// Mock document metadata
-const MOCK_DOC = {
-  id: "1",
-  file_name: "딥러닝 기반 자연어 처리 연구 논문.pdf",
-  file_path: "/docs/nlp_paper.pdf",
-  page_count: 34,
-  status: "ready" as const,
-  ingested_at: "2026.02.17 14:32",
-  updated_at: "2026.02.17",
-  lines: 847,
-  size: "2.4 MB",
-};
-
-const EXTRACTION_STATUS: Partial<Record<ExtractionStepKey, StepStatus>> = {
-  extracted: "done",
-  line_built: "done",
-  window_built: "done",
-  embedding_indexed: "done",
-};
-
-const MOCK_PAGES = [
-  { pageNo: 1, title: "1. 서론", lineStart: 1, lineEnd: 25 },
-  { pageNo: 2, title: "2. 관련 연구", lineStart: 26, lineEnd: 54 },
-  { pageNo: 3, title: "3. 방법론", lineStart: 55, lineEnd: 88 },
-  { pageNo: 4, title: "4. 실험 결과", lineStart: 89, lineEnd: 130 },
-  { pageNo: 5, title: "5. 결론", lineStart: 131, lineEnd: 155 },
-];
-
-const MOCK_LINES: Record<number, { lineNo: number; text: string; hasAnchor?: boolean }[]> = {
-  1: [
-    { lineNo: 1, text: "딥러닝 기반 자연어 처리 연구" },
-    { lineNo: 2, text: "김철수¹, 이영희², 박민수¹" },
-    { lineNo: 3, text: "¹서울대학교 AI연구소  ²카이스트" },
-    { lineNo: 4, text: "" },
-    { lineNo: 5, text: "【초록】" },
-    { lineNo: 6, text: "본 연구는 BERT 기반 한국어 텍스트 분류 시스템을 제안합니다." },
-    { lineNo: 7, text: "기존 BiLSTM 대비 정확도 12.3%, F1-Score 9.8% 향상을 달성하였으며," },
-    { lineNo: 8, text: "KorNLI, KorSTS, NSMC, PAWS-X 4종 벤치마크에서 SOTA를 기록했습니다." },
-    { lineNo: 9, text: "" },
-    { lineNo: 10, text: "키워드: BERT, KoBERT, 텍스트 분류, 한국어 NLP, 파인튜닝" },
-  ],
-  2: [
-    { lineNo: 26, text: "2. 관련 연구" },
-    { lineNo: 27, text: "" },
-    { lineNo: 28, text: "2.1 사전 학습 언어 모델" },
-    { lineNo: 29, text: "Devlin et al.(2019)의 BERT는 양방향 트랜스포머 구조를 기반으로" },
-    { lineNo: 30, text: "대규모 비지도 학습을 수행한 사전 학습 모델이다." },
-    { lineNo: 31, text: "" },
-    { lineNo: 32, text: "2.2 한국어 NLP 모델 현황" },
-    { lineNo: 33, text: "KoBERT(SKT)는 한국어 위키피디아 기반 사전 학습 모델로," },
-    { lineNo: 34, text: "한국어 자연어 이해 태스크에서 우수한 성능을 보인다." },
-  ],
-  3: [
-    { lineNo: 55, text: "3. 방법론" },
-    { lineNo: 56, text: "" },
-    { lineNo: 57, text: "3.1 모델 구조 및 학습 전략" },
-    { lineNo: 58, text: "제안하는 모델의 전체 아키텍처는 Fig. 2와 같다." },
-    { lineNo: 59, text: "사전 학습된 KoBERT를 백본으로 사용하며," },
-    { lineNo: 60, text: "[CLS] 토큰의 최종 은닉 상태를 분류 헤드에 전달한다." },
-    { lineNo: 61, text: "" },
-    { lineNo: 62, text: "학습률: 2e-5, 배치 크기: 32, 에폭: 10, 옵티마이저: AdamW" },
-    { lineNo: 63, text: "드롭아웃: 0.1, 최대 시퀀스 길이: 512" },
-  ],
-  4: [
-    { lineNo: 89, text: "4. 실험 결과" },
-    { lineNo: 90, text: "" },
-    { lineNo: 91, text: "4.1 벤치마크 성능 비교" },
-    { lineNo: 92, text: "Table 1은 기존 모델들과의 상세 비교를 나타낸다." },
-    { lineNo: 93, text: "" },
-    { lineNo: 94, text: "KorNLI: 93.2%, KorSTS: 87.4%, NSMC: 91.8%, PAWS-X: 88.6%", hasAnchor: true },
-    { lineNo: 95, text: "4종 벤치마크 모두에서 기존 최고 성능(SOTA)을 달성하였다.", hasAnchor: true },
-    { lineNo: 96, text: "" },
-    { lineNo: 97, text: "KoBERT-CLS 모델은 기존 BiLSTM 대비 정확도 12.3% 향상을 달성하였다.", hasAnchor: true },
-    { lineNo: 98, text: "F1-Score 기준으로는 9.8% 향상되었으며," },
-    { lineNo: 99, text: "이는 모든 비교 모델 중 최고 수준이다." },
-  ],
-  5: [
-    { lineNo: 131, text: "5. 결론" },
-    { lineNo: 132, text: "" },
-    { lineNo: 133, text: "본 연구에서는 KoBERT 기반 한국어 텍스트 분류 모델을 제안하였다." },
-    { lineNo: 134, text: "형태소 분석기 연동으로 OOV 비율을 3.7%→1.1%로 감소시켰으며,", hasAnchor: true },
-    { lineNo: 135, text: "이는 최종 성능 향상의 주요 요인으로 분석된다.", hasAnchor: true },
-    { lineNo: 136, text: "" },
-    { lineNo: 137, text: "금융 문서 93.4%, 의료 차트 89.7%, 법률 조항 91.2%로 범용성을 입증하였다.", hasAnchor: true },
-  ],
-};
+import { api, DocMeta, PageMeta, Line } from "../../lib/api";
 
 export default function DocumentDetailPage() {
-  const { docId } = useParams();
+  const { docId } = useParams() as { docId: string };
   const router = useRouter();
 
-  const doc = MOCK_DOC;
+  // Data states
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [doc, setDoc] = useState<DocMeta | null>(null);
+  const [pages, setPages] = useState<PageMeta[]>([]);
+  const [currentLines, setCurrentLines] = useState<Line[]>([]);
 
+  // UI states
   const [currentPage, setCurrentPage] = useState(1);
   const [zoom, setZoom] = useState(100);
   const [highlightedLines, setHighlightedLines] = useState<number[]>([]);
-  // Mobile tab state
   const [mobileTab, setMobileTab] = useState<"lines" | "pdf">("lines");
 
   const lineRefs = useRef<Record<number, HTMLDivElement | null>>({});
   const lineListRef = useRef<HTMLDivElement>(null);
   const fadeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const currentPageData = MOCK_PAGES.find((p) => p.pageNo === currentPage);
-  const currentLines = MOCK_LINES[currentPage] || [];
+  // Initial Fetch: Doc metadata and Pages
+  useEffect(() => {
+    if (!docId) return;
+
+    const fetchInitialData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const [docData, pagesData] = await Promise.all([
+          api.getDocument(docId),
+          api.getPages(docId),
+        ]);
+        setDoc(docData);
+        setPages(pagesData);
+
+        // If there are pages, the first page lines will be fetched by the other useEffect
+      } catch (err) {
+        console.error("Failed to fetch document data:", err);
+        setError("문서 정보를 불러오는 중 오류가 발생했습니다.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchInitialData();
+  }, [docId]);
+
+  // Fetch Lines when page changes
+  useEffect(() => {
+    if (!docId || !currentPage) return;
+
+    const fetchLines = async () => {
+      try {
+        const lines = await api.getLines(docId, currentPage);
+        setCurrentLines(lines);
+      } catch (err) {
+        console.error("Failed to fetch lines:", err);
+        // Don't set global error to avoid hiding the whole UI, maybe just a toast
+      }
+    };
+
+    fetchLines();
+  }, [docId, currentPage]);
+
+  const currentPageData = pages.find((p) => p.pageNo === currentPage);
 
   const highlightLines = useCallback((lineNums: number[]) => {
     if (fadeTimerRef.current) clearTimeout(fadeTimerRef.current);
@@ -142,67 +106,43 @@ export default function DocumentDetailPage() {
     };
   }, []);
 
-  // Shared PDF mock content
-  const PdfMockContent = () => (
-    <div className="rounded-xl border border-[var(--border)] shadow-sm overflow-hidden">
-      <div
-        className="bg-white dark:bg-[#1a2236] px-6 md:px-8 py-5 md:py-6 min-h-[380px]"
-        style={{ transform: `scale(${zoom / 100})`, transformOrigin: "top center" }}
-      >
-        <div className="text-center mb-5 pb-4 border-b border-gray-100 dark:border-gray-700/50">
-          <p className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-1">
-            딥러닝 기반 자연어 처리 연구
-          </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            김철수¹ · 이영희² · 박민수¹
-          </p>
-        </div>
+  // Mock extraction status for now, or derive from doc
+  const extractionStatuses: Partial<Record<ExtractionStepKey, StepStatus>> = {
+    extracted: "done",
+    line_built: "done",
+    window_built: "done",
+    embedding_indexed: "done",
+  };
 
-        {currentPageData && (
-          <div>
-            <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-3">
-              {currentPageData.title}
-            </p>
-            <div className="space-y-2">
-              {currentLines
-                .filter((l) => l.text)
-                .slice(0, 8)
-                .map((line) => (
-                  <div
-                    key={line.lineNo}
-                    className={`flex gap-3 rounded px-2 py-0.5 transition-all duration-300 ${highlightedLines.includes(line.lineNo)
-                        ? "bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700"
-                        : ""
-                      }`}
-                  >
-                    <span className="text-[9px] text-gray-300 dark:text-gray-600 font-mono w-4 flex-shrink-0 text-right mt-0.5">
-                      {line.lineNo}
-                    </span>
-                    <p className="text-[11px] text-gray-700 dark:text-gray-300 leading-relaxed font-sans">
-                      {line.text}
-                    </p>
-                  </div>
-                ))}
-              {currentLines.filter((l) => l.text).length > 8 && (
-                <p className="text-[10px] text-gray-400 dark:text-gray-600 text-center pt-2">
-                  ⋯ {currentLines.filter((l) => l.text).length - 8}줄 더
-                </p>
-              )}
-            </div>
-          </div>
-        )}
-
-        <div className="mt-8 pt-4 border-t border-gray-100 dark:border-gray-700/50 flex justify-between">
-          <span className="text-[9px] text-gray-400 dark:text-gray-600">
-            GLIN 분석용 — 로컬 처리
-          </span>
-          <span className="text-[9px] text-gray-400 dark:text-gray-600">
-            {currentPage} / {doc.page_count}
-          </span>
-        </div>
+  // Loading state UI
+  if (loading) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
+        <Loader2 className="w-10 h-10 text-[var(--glin-accent)] animate-spin" />
+        <p className="text-muted-foreground font-medium">문서를 불러오는 중입니다...</p>
       </div>
-    </div>
-  );
+    );
+  }
+
+  // Error state UI
+  if (error || !doc) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center text-red-500">
+          <AlertCircle size={32} />
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-lg font-bold text-foreground">{error || "문서를 찾을 수 없습니다."}</h3>
+        </div>
+        <button
+          onClick={() => router.push("/documents")}
+          className="px-6 py-2.5 rounded-xl bg-[var(--glin-accent)] text-white font-semibold hover:opacity-90 transition-all"
+        >
+          문서 목록으로 가기
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col">
@@ -245,7 +185,7 @@ export default function DocumentDetailPage() {
             {doc.page_count}페이지 · {doc.lines.toLocaleString()}줄
           </span>
           <button
-            onClick={() => router.push("/analysis")}
+            onClick={() => router.push(`/analysis?docId=${doc.id}`)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-white"
             style={{ background: "var(--glin-accent-gradient)" }}
           >
@@ -268,8 +208,8 @@ export default function DocumentDetailPage() {
               key={tab}
               onClick={() => setMobileTab(tab)}
               className={`flex-1 flex items-center justify-center gap-2 py-3.5 text-sm font-semibold transition-colors border-b-2 min-h-[48px] ${mobileTab === tab
-                  ? "text-[var(--glin-accent)] border-[var(--glin-accent)] bg-[var(--glin-accent-light)]/30"
-                  : "text-muted-foreground border-transparent hover:text-foreground"
+                ? "text-[var(--glin-accent)] border-[var(--glin-accent)] bg-[var(--glin-accent-light)]/30"
+                : "text-muted-foreground border-transparent hover:text-foreground"
                 }`}
             >
               {tab === "lines" ? (
@@ -290,11 +230,12 @@ export default function DocumentDetailPage() {
               onChange={(e) => setCurrentPage(Number(e.target.value))}
               className="w-full px-3 py-2.5 rounded-xl bg-muted border border-[var(--border)] text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-[var(--glin-accent)] transition-all appearance-none pr-8 min-h-[44px]"
             >
-              {MOCK_PAGES.map((p) => (
+              {pages.map((p) => (
                 <option key={p.pageNo} value={p.pageNo}>
-                  {p.pageNo}페이지 — {p.title}
+                  {p.pageNo}페이지 {p.title ? `— ${p.title}` : ""}
                 </option>
               ))}
+              {pages.length === 0 && <option value={1}>1페이지</option>}
             </select>
             <ChevronLeft size={14} className="absolute right-3 top-1/2 -translate-y-1/2 rotate-[-90deg] text-muted-foreground pointer-events-none" />
           </div>
@@ -309,47 +250,48 @@ export default function DocumentDetailPage() {
             ref={lineListRef}
             className="flex-1 overflow-y-auto px-4 py-3 font-mono"
           >
-            {currentLines.map((line) => {
-              const isHighlighted = highlightedLines.includes(line.lineNo);
-              return (
-                <div
-                  key={line.lineNo}
-                  ref={(el) => { lineRefs.current[line.lineNo] = el; }}
-                  className={`flex gap-3 rounded-lg px-2 py-2 transition-all duration-300 ${isHighlighted
+            {currentLines.length === 0 ? (
+              <div className="py-20 text-center text-xs text-muted-foreground italic">
+                라인 데이터를 불러오는 중이거나 데이터가 없습니다.
+              </div>
+            ) : (
+              currentLines.map((line) => {
+                const isHighlighted = highlightedLines.includes(line.lineNo);
+                return (
+                  <div
+                    key={line.lineNo}
+                    ref={(el) => { lineRefs.current[line.lineNo] = el; }}
+                    className={`flex gap-3 rounded-lg px-2 py-2 transition-all duration-300 ${isHighlighted
                       ? "bg-[var(--glin-evidence-bg)] border border-[var(--glin-evidence-border)] shadow-sm"
                       : ""
-                    }`}
-                >
-                  <span
-                    className={`flex-shrink-0 w-8 text-right select-none text-xs leading-relaxed pt-0.5 ${isHighlighted
+                      }`}
+                  >
+                    <span
+                      className={`flex-shrink-0 w-8 text-right select-none text-xs leading-relaxed pt-0.5 ${isHighlighted
                         ? "text-[var(--glin-accent)] font-bold"
                         : "text-muted-foreground/40"
-                      }`}
-                  >
-                    {line.text ? line.lineNo : ""}
-                  </span>
-                  <span
-                    className={`flex-1 text-sm leading-relaxed ${isHighlighted ? "text-foreground font-medium" : "text-foreground/80"
-                      }`}
-                  >
-                    {line.text}
-                  </span>
-                  {line.hasAnchor && (
-                    <Anchor
-                      size={11}
-                      className={`flex-shrink-0 mt-1.5 transition-colors ${isHighlighted
+                        }`}
+                    >
+                      {line.text ? line.lineNo : ""}
+                    </span>
+                    <span
+                      className={`flex-1 text-sm leading-relaxed ${isHighlighted ? "text-foreground font-medium" : "text-foreground/80"
+                        }`}
+                    >
+                      {line.text}
+                    </span>
+                    {line.hasAnchor && (
+                      <Anchor
+                        size={11}
+                        className={`flex-shrink-0 mt-1.5 transition-colors ${isHighlighted
                           ? "text-[var(--glin-accent)]"
                           : "text-muted-foreground/25"
-                        }`}
-                    />
-                  )}
-                </div>
-              );
-            })}
-            {currentPage === MOCK_PAGES.length && (
-              <div className="text-center py-6 text-xs text-muted-foreground/40">
-                ⋯ 이하 생략
-              </div>
+                          }`}
+                      />
+                    )}
+                  </div>
+                );
+              })
             )}
 
             {/* Test highlight hint */}
@@ -360,12 +302,6 @@ export default function DocumentDetailPage() {
               <p className="text-xs text-muted-foreground leading-relaxed mb-2">
                 요약 분석 페이지에서 근거(Evidence) 카드를 클릭하면 해당 라인이 자동으로 하이라이트됩니다.
               </p>
-              <button
-                onClick={() => { setCurrentPage(4); highlightLines([94, 95, 97]); }}
-                className="text-xs text-[var(--glin-accent)] hover:underline font-medium"
-              >
-                → 테스트: 4페이지 L.94–97 하이라이트
-              </button>
             </div>
           </div>
         ) : (
@@ -393,15 +329,14 @@ export default function DocumentDetailPage() {
               </div>
             </div>
 
-            <PdfMockContent />
-            <ExtractionStatus statuses={EXTRACTION_STATUS} />
+            <ExtractionStatus statuses={extractionStatuses} />
           </div>
         )}
 
         {/* ── Sticky bottom: 요약 실행 ── */}
         <div className="flex-shrink-0 border-t border-[var(--border)] bg-[var(--card)] px-4 py-3 safe-area-pb">
           <button
-            onClick={() => router.push("/analysis")}
+            onClick={() => router.push(`/analysis?docId=${doc.id}`)}
             className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold text-white min-h-[52px]"
             style={{ background: "var(--glin-accent-gradient)" }}
           >
@@ -427,23 +362,27 @@ export default function DocumentDetailPage() {
               </span>
             </div>
             <div className="flex gap-1 overflow-x-auto pb-1">
-              {MOCK_PAGES.map((p) => (
+              {pages.map((p) => (
                 <button
                   key={p.pageNo}
                   onClick={() => setCurrentPage(p.pageNo)}
                   className={`flex-shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-medium transition-all ${currentPage === p.pageNo
-                      ? "text-white"
-                      : "bg-muted text-muted-foreground hover:text-foreground"
+                    ? "text-white"
+                    : "bg-muted text-muted-foreground hover:text-foreground"
                     }`}
                   style={currentPage === p.pageNo ? { background: "var(--glin-accent-gradient)" } : {}}
                 >
                   {p.pageNo}
                 </button>
               ))}
-              {doc.page_count > 5 && (
-                <span className="flex-shrink-0 px-2 py-1 text-[11px] text-muted-foreground">
-                  ···
-                </span>
+              {pages.length === 0 && (
+                <button
+                  onClick={() => setCurrentPage(1)}
+                  className="flex-shrink-0 px-2.5 py-1 rounded-lg text-[11px] font-medium text-white"
+                  style={{ background: "var(--glin-accent-gradient)" }}
+                >
+                  1
+                </button>
               )}
             </div>
             {currentPageData && (
@@ -453,45 +392,46 @@ export default function DocumentDetailPage() {
 
           {/* Line list */}
           <div ref={lineListRef} className="flex-1 overflow-y-auto px-3 py-2 font-mono text-xs">
-            {currentLines.map((line) => {
-              const isHighlighted = highlightedLines.includes(line.lineNo);
-              return (
-                <div
-                  key={line.lineNo}
-                  ref={(el) => { lineRefs.current[line.lineNo] = el; }}
-                  className={`flex gap-2.5 group rounded px-1.5 py-0.5 transition-all duration-300 ${isHighlighted
+            {currentLines.length === 0 ? (
+              <div className="py-20 text-center text-[10px] text-muted-foreground italic">
+                라인 데이터를 불러오는 중입니다...
+              </div>
+            ) : (
+              currentLines.map((line) => {
+                const isHighlighted = highlightedLines.includes(line.lineNo);
+                return (
+                  <div
+                    key={line.lineNo}
+                    ref={(el) => { lineRefs.current[line.lineNo] = el; }}
+                    className={`flex gap-2.5 group rounded px-1.5 py-0.5 transition-all duration-300 ${isHighlighted
                       ? "bg-[var(--glin-evidence-bg)] border border-[var(--glin-evidence-border)] shadow-sm"
                       : ""
-                    }`}
-                >
-                  <span
-                    className={`flex-shrink-0 w-7 text-right select-none text-[10px] leading-relaxed ${isHighlighted ? "text-[var(--glin-accent)] font-bold" : "text-muted-foreground/40"
                       }`}
                   >
-                    {line.text ? line.lineNo : ""}
-                  </span>
-                  <span
-                    className={`flex-1 leading-relaxed ${isHighlighted ? "text-foreground font-medium" : "text-foreground/80"
-                      }`}
-                  >
-                    {line.text}
-                  </span>
-                  {line.hasAnchor && (
-                    <Anchor
-                      size={9}
-                      className={`flex-shrink-0 mt-1 transition-colors ${isHighlighted
+                    <span
+                      className={`flex-shrink-0 w-7 text-right select-none text-[10px] leading-relaxed ${isHighlighted ? "text-[var(--glin-accent)] font-bold" : "text-muted-foreground/40"
+                        }`}
+                    >
+                      {line.text ? line.lineNo : ""}
+                    </span>
+                    <span
+                      className={`flex-1 leading-relaxed ${isHighlighted ? "text-foreground font-medium" : "text-foreground/80"
+                        }`}
+                    >
+                      {line.text}
+                    </span>
+                    {line.hasAnchor && (
+                      <Anchor
+                        size={9}
+                        className={`flex-shrink-0 mt-1 transition-colors ${isHighlighted
                           ? "text-[var(--glin-accent)]"
                           : "text-muted-foreground/25 group-hover:text-[var(--glin-accent)]/50"
-                        }`}
-                    />
-                  )}
-                </div>
-              );
-            })}
-            {currentPage === MOCK_PAGES.length && (
-              <div className="text-center py-4 text-[10px] text-muted-foreground/40">
-                ⋯ 이하 생략
-              </div>
+                          }`}
+                      />
+                    )}
+                  </div>
+                );
+              })
             )}
           </div>
 
@@ -508,8 +448,8 @@ export default function DocumentDetailPage() {
               {currentPage} / {doc.page_count}
             </span>
             <button
-              onClick={() => setCurrentPage((p) => Math.min(MOCK_PAGES.length, p + 1))}
-              disabled={currentPage === MOCK_PAGES.length}
+              onClick={() => setCurrentPage((p) => Math.min(doc.page_count, p + 1))}
+              disabled={currentPage === doc.page_count}
               className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground disabled:opacity-30 transition-colors"
             >
               다음 <PageNext size={13} />
@@ -555,14 +495,11 @@ export default function DocumentDetailPage() {
               <div className="bg-white dark:bg-[#1a2236] px-8 py-6 min-h-[420px]">
                 <div className="text-center mb-6 pb-5 border-b border-gray-100 dark:border-gray-700/50">
                   <p className="text-sm font-bold text-gray-800 dark:text-gray-200 mb-1">
-                    딥러닝 기반 자연어 처리 연구
-                  </p>
-                  <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                    김철수¹ · 이영희² · 박민수¹
+                    {doc.file_name}
                   </p>
                 </div>
 
-                {currentPageData && (
+                {currentPageData ? (
                   <div>
                     <p className="text-xs font-bold text-gray-700 dark:text-gray-300 mb-3">
                       {currentPageData.title}
@@ -570,13 +507,13 @@ export default function DocumentDetailPage() {
                     <div className="space-y-2">
                       {currentLines
                         .filter((l) => l.text)
-                        .slice(0, 8)
+                        .slice(0, 15)
                         .map((line) => (
                           <div
                             key={line.lineNo}
                             className={`flex gap-3 rounded px-2 py-0.5 transition-all duration-300 ${highlightedLines.includes(line.lineNo)
-                                ? "bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700"
-                                : ""
+                              ? "bg-blue-50 dark:bg-blue-900/30 border border-blue-200 dark:border-blue-700"
+                              : ""
                               }`}
                           >
                             <span className="text-[9px] text-gray-300 dark:text-gray-600 font-mono w-4 flex-shrink-0 text-right mt-0.5">
@@ -587,12 +524,16 @@ export default function DocumentDetailPage() {
                             </p>
                           </div>
                         ))}
-                      {currentLines.filter((l) => l.text).length > 8 && (
+                      {currentLines.filter((l) => l.text).length > 15 && (
                         <p className="text-[10px] text-gray-400 dark:text-gray-600 text-center pt-2">
-                          ⋯ {currentLines.filter((l) => l.text).length - 8}줄 더
+                          ⋯ {currentLines.filter((l) => l.text).length - 15}줄 더
                         </p>
                       )}
                     </div>
+                  </div>
+                ) : (
+                  <div className="py-20 text-center text-xs text-muted-foreground italic">
+                    페이지 내용을 표시할 수 없습니다.
                   </div>
                 )}
 
@@ -603,7 +544,7 @@ export default function DocumentDetailPage() {
               </div>
             </div>
 
-            <ExtractionStatus statuses={EXTRACTION_STATUS} />
+            <ExtractionStatus statuses={extractionStatuses} />
 
             <div className="rounded-xl border border-[var(--glin-evidence-border)] bg-[var(--glin-evidence-bg)] p-3">
               <p className="text-xs text-[var(--glin-accent)] font-medium mb-1">
@@ -612,12 +553,6 @@ export default function DocumentDetailPage() {
               <p className="text-[11px] text-muted-foreground leading-relaxed">
                 요약 분석 페이지에서 근거(Evidence) 카드를 클릭하면, 이 뷰어의 해당 라인이 자동으로 하이라이트됩니다.
               </p>
-              <button
-                onClick={() => highlightLines([94, 95, 97])}
-                className="mt-2 text-[11px] text-[var(--glin-accent)] hover:underline"
-              >
-                → 테스트: 4페이지 L.94–97 하이라이트
-              </button>
             </div>
           </div>
         </div>

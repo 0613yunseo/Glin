@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   FileText,
@@ -15,100 +15,25 @@ import {
   AlertCircle,
   ArrowUpDown,
   Eye,
-  ChevronRight,
   Clock,
 } from "lucide-react";
+import { api, DocMeta } from "../../lib/api";
 
-interface Document {
+/**
+ * 명확한 타입 정의 (any 사용 금지)
+ */
+interface DocumentListItem {
   id: string;
   file_name: string;
-  file_path: string;
   page_count: number;
-  status: "ready" | "processing" | "failed";
-  ingested_at: string;
+  status: "ready" | "processing" | "failed" | "error"; // "error"도 포함 (가정 준수)
   updated_at: string;
   lines: number;
   size: string;
-  category: string;
 }
 
-const allDocs: Document[] = [
-  {
-    id: "1",
-    file_name: "딥러닝 기반 자연어 처리 연구 논문.pdf",
-    file_path: "/docs/nlp_paper.pdf",
-    page_count: 34,
-    status: "ready",
-    ingested_at: "2026.02.17 14:32",
-    updated_at: "2026.02.17",
-    lines: 847,
-    size: "2.4 MB",
-    category: "논문",
-  },
-  {
-    id: "2",
-    file_name: "2025 AI 시장 분석 보고서.pdf",
-    file_path: "/docs/ai_market.pdf",
-    page_count: 58,
-    status: "ready",
-    ingested_at: "2026.02.15 09:18",
-    updated_at: "2026.02.15",
-    lines: 1203,
-    size: "5.8 MB",
-    category: "보고서",
-  },
-  {
-    id: "3",
-    file_name: "의료 AI 규제 정책 검토 문서.pdf",
-    file_path: "/docs/medical_ai.pdf",
-    page_count: 21,
-    status: "processing",
-    ingested_at: "2026.02.12 16:55",
-    updated_at: "2026.02.12",
-    lines: 412,
-    size: "1.1 MB",
-    category: "정책",
-  },
-  {
-    id: "4",
-    file_name: "자율주행 기술 동향 보고서 Q4 2025.pdf",
-    file_path: "/docs/av_report.pdf",
-    page_count: 72,
-    status: "ready",
-    ingested_at: "2026.02.10 11:20",
-    updated_at: "2026.02.10",
-    lines: 1844,
-    size: "9.2 MB",
-    category: "보고서",
-  },
-  {
-    id: "5",
-    file_name: "머신러닝 모델 성능 평가 가이드라인.pdf",
-    file_path: "/docs/ml_guide.pdf",
-    page_count: 16,
-    status: "failed",
-    ingested_at: "2026.02.07 08:45",
-    updated_at: "2026.02.07",
-    lines: 0,
-    size: "3.3 MB",
-    category: "가이드",
-  },
-  {
-    id: "6",
-    file_name: "대규모 언어 모델 파인튜닝 실무 가이드.pdf",
-    file_path: "/docs/llm_finetune.pdf",
-    page_count: 45,
-    status: "ready",
-    ingested_at: "2026.01.28 17:03",
-    updated_at: "2026.01.28",
-    lines: 1102,
-    size: "4.1 MB",
-    category: "가이드",
-  },
-];
-
 const STATUS_CONFIG: Record<
-  Document["status"],
+  DocumentListItem["status"],
   { icon: React.ReactNode; label: string; bg: string; text: string }
 > = {
   ready: {
@@ -129,32 +54,91 @@ const STATUS_CONFIG: Record<
     bg: "bg-red-100 dark:bg-red-900/30",
     text: "text-red-700 dark:text-red-400",
   },
-};
-
-const CATEGORY_COLORS: Record<string, string> = {
-  논문: "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400",
-  보고서: "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400",
-  정책: "bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-400",
-  가이드: "bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400",
+  error: {
+    icon: <AlertCircle size={11} />,
+    label: "오류",
+    bg: "bg-red-100 dark:bg-red-900/30",
+    text: "text-red-700 dark:text-red-400",
+  },
 };
 
 export default function DocumentsPage() {
   const router = useRouter();
+
+  // Data State
+  const [documents, setDocuments] = useState<DocumentListItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  // UI State
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("전체");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
 
-  const filtered = allDocs.filter((d) => {
-    const matchSearch = d.file_name.toLowerCase().includes(search.toLowerCase());
-    const matchStatus =
-      filterStatus === "전체" ||
-      (filterStatus === "준비됨" && d.status === "ready") ||
-      (filterStatus === "처리중" && d.status === "processing") ||
-      (filterStatus === "오류" && d.status === "failed");
-    return matchSearch && matchStatus;
-  });
+  useEffect(() => {
+    const fetchDocuments = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const data: DocMeta[] = await api.getDocuments();
 
-  const readyCount = allDocs.filter((d) => d.status === "ready").length;
+        // API 결과를 DocumentListItem 형식으로 매핑
+        const mappedDocs: DocumentListItem[] = data.map((d) => ({
+          id: d.id,
+          file_name: d.file_name,
+          page_count: d.page_count,
+          status: (d.status === "failed" ? "error" : d.status) || "ready",
+          updated_at: d.ingested_at || "-",
+          lines: d.lines || 0,
+          size: d.size || "0 KB",
+        }));
+
+        setDocuments(mappedDocs);
+      } catch (err) {
+        console.error("Failed to fetch documents:", err);
+        setError("문서 목록을 불러오지 못했습니다.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDocuments();
+  }, []);
+
+  const filtered = useMemo(() => {
+    return documents.filter((d) => {
+      const matchSearch = d.file_name.toLowerCase().includes(search.toLowerCase());
+      const matchStatus =
+        filterStatus === "전체" ||
+        (filterStatus === "준비됨" && d.status === "ready") ||
+        (filterStatus === "처리중" && d.status === "processing") ||
+        (filterStatus === "오류" && (d.status === "failed" || d.status === "error"));
+      return matchSearch && matchStatus;
+    });
+  }, [documents, search, filterStatus]);
+
+  const stats = useMemo(() => {
+    const ready = documents.filter((d) => d.status === "ready").length;
+    return { total: documents.length, ready };
+  }, [documents]);
+
+  // Loading Skeleton Component
+  const SkeletonRow = () => (
+    <div className="grid grid-cols-[2fr_80px_100px_130px_80px_48px] gap-0 px-4 py-4 items-center animate-pulse">
+      <div className="flex items-center gap-3">
+        <div className="w-8 h-8 rounded-lg bg-muted" />
+        <div className="space-y-2">
+          <div className="h-4 w-32 bg-muted rounded" />
+          <div className="h-3 w-20 bg-muted rounded" />
+        </div>
+      </div>
+      <div className="h-4 w-8 bg-muted rounded" />
+      <div className="h-6 w-16 bg-muted rounded-lg" />
+      <div className="h-4 w-24 bg-muted rounded" />
+      <div className="h-8 w-14 bg-muted rounded-lg" />
+      <div className="ml-auto h-4 w-4 bg-muted rounded" />
+    </div>
+  );
 
   return (
     <div className="max-w-6xl mx-auto px-4 md:px-8 py-6 md:py-8 space-y-5 md:space-y-6">
@@ -163,7 +147,7 @@ export default function DocumentsPage() {
         <div>
           <h1 className="text-foreground">문서 목록</h1>
           <p className="text-muted-foreground text-sm mt-0.5">
-            총 {allDocs.length}개 문서 · {readyCount}개 분석 완료
+            총 {stats.total}개 문서 · {stats.ready}개 분석 완료
           </p>
         </div>
         <button
@@ -196,8 +180,8 @@ export default function DocumentsPage() {
               key={s}
               onClick={() => setFilterStatus(s)}
               className={`flex-shrink-0 px-4 py-2.5 rounded-xl text-xs font-medium transition-all min-h-[44px] whitespace-nowrap ${filterStatus === s
-                  ? "text-white shadow-sm"
-                  : "bg-[var(--card)] border border-[var(--border)] text-muted-foreground hover:text-foreground"
+                ? "text-white shadow-sm"
+                : "bg-[var(--card)] border border-[var(--border)] text-muted-foreground hover:text-foreground"
                 }`}
               style={filterStatus === s ? { background: "var(--glin-accent-gradient)" } : {}}
             >
@@ -211,35 +195,41 @@ export default function DocumentsPage() {
       <div className="hidden md:block">
         <div className="rounded-2xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
           <div className="grid grid-cols-[2fr_80px_100px_130px_80px_48px] gap-0 border-b border-[var(--border)] px-4 py-2.5 bg-muted/50">
-            {[
-              { label: "파일명" },
-              { label: "페이지 수" },
-              { label: "상태" },
-              { label: "최종 업데이트" },
-              { label: "보기" },
-              { label: "" },
-            ].map((col, i) => (
+            {["파일명", "페이지 수", "상태", "최종 업데이트", "보기", ""].map((label, i) => (
               <div
                 key={i}
                 className="flex items-center gap-1 text-[11px] font-semibold text-muted-foreground uppercase tracking-wider"
               >
-                {col.label}
-                {col.label && col.label !== "보기" && col.label !== "상태" && (
+                {label}
+                {label && label !== "보기" && label !== "상태" && label !== "" && (
                   <ArrowUpDown size={10} className="opacity-50" />
                 )}
               </div>
             ))}
           </div>
 
-          {filtered.length === 0 ? (
+          {loading ? (
+            <div className="divide-y divide-[var(--border)]">
+              {[1, 2, 3, 4, 5].map((i) => <SkeletonRow key={i} />)}
+            </div>
+          ) : filtered.length === 0 ? (
             <div className="text-center py-16 text-muted-foreground">
-              <FileText size={36} className="mx-auto mb-3 opacity-30" />
-              <p className="text-sm">검색 결과가 없습니다.</p>
+              {error ? (
+                <>
+                  <AlertCircle size={36} className="mx-auto mb-3 text-red-400" />
+                  <p className="text-sm font-medium text-red-500">{error}</p>
+                </>
+              ) : (
+                <>
+                  <FileText size={36} className="mx-auto mb-3 opacity-30" />
+                  <p className="text-sm">검색 결과가 없습니다.</p>
+                </>
+              )}
             </div>
           ) : (
             <div className="divide-y divide-[var(--border)]">
               {filtered.map((doc) => {
-                const statusCfg = STATUS_CONFIG[doc.status];
+                const statusCfg = STATUS_CONFIG[doc.status] || STATUS_CONFIG.ready;
                 return (
                   <div
                     key={doc.id}
@@ -258,9 +248,6 @@ export default function DocumentsPage() {
                           {doc.file_name}
                         </p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${CATEGORY_COLORS[doc.category] || ""}`}>
-                            {doc.category}
-                          </span>
                           {doc.lines > 0 && (
                             <span className="text-[10px] text-muted-foreground">{doc.lines.toLocaleString()}줄</span>
                           )}
@@ -326,22 +313,42 @@ export default function DocumentsPage() {
 
       {/* Mobile: card list */}
       <div className="md:hidden space-y-4">
-        {filtered.length === 0 ? (
+        {loading ? (
+          [1, 2, 3].map((i) => (
+            <div key={i} className="rounded-2xl border border-[var(--border)] bg-[var(--card)] p-4 space-y-4 animate-pulse">
+              <div className="flex gap-3">
+                <div className="w-10 h-10 rounded-xl bg-muted" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-3/4 bg-muted rounded" />
+                  <div className="h-3 w-1/2 bg-muted rounded" />
+                </div>
+              </div>
+              <div className="h-10 w-full bg-muted rounded-xl" />
+            </div>
+          ))
+        ) : filtered.length === 0 ? (
           <div className="text-center py-16 text-muted-foreground">
-            <FileText size={36} className="mx-auto mb-3 opacity-30" />
-            <p className="text-sm">검색 결과가 없습니다.</p>
+            {error ? (
+              <>
+                <AlertCircle size={36} className="mx-auto mb-3 text-red-400" />
+                <p className="text-sm font-medium text-red-500">{error}</p>
+              </>
+            ) : (
+              <>
+                <FileText size={36} className="mx-auto mb-3 opacity-30" />
+                <p className="text-sm">검색 결과가 없습니다.</p>
+              </>
+            )}
           </div>
         ) : (
           filtered.map((doc) => {
-            const statusCfg = STATUS_CONFIG[doc.status];
+            const statusCfg = STATUS_CONFIG[doc.status] || STATUS_CONFIG.ready;
             return (
               <div
                 key={doc.id}
                 className="rounded-2xl border border-[var(--border)] bg-[var(--card)] overflow-hidden"
               >
-                {/* Card body */}
                 <div className="p-4">
-                  {/* File name + status */}
                   <div className="flex items-start gap-3 mb-3">
                     <div
                       className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5"
@@ -358,14 +365,10 @@ export default function DocumentsPage() {
                           {statusCfg.icon}
                           {statusCfg.label}
                         </span>
-                        <span className={`text-xs font-semibold px-2 py-0.5 rounded-lg ${CATEGORY_COLORS[doc.category] || ""}`}>
-                          {doc.category}
-                        </span>
                       </div>
                     </div>
                   </div>
 
-                  {/* Meta info */}
                   <div className="flex items-center gap-4 flex-wrap mb-4 pl-[52px]">
                     <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
                       <Clock size={11} /> {doc.updated_at}
@@ -379,7 +382,6 @@ export default function DocumentsPage() {
                     <span className="text-xs text-muted-foreground">{doc.size}</span>
                   </div>
 
-                  {/* Full-width view button */}
                   <button
                     onClick={() => router.push(`/documents/${doc.id}`)}
                     className="w-full flex items-center justify-center gap-2 py-3.5 rounded-xl text-sm font-semibold text-white min-h-[48px]"
@@ -390,7 +392,6 @@ export default function DocumentsPage() {
                   </button>
                 </div>
 
-                {/* Quick actions bar */}
                 <div className="border-t border-[var(--border)] flex divide-x divide-[var(--border)]">
                   <button className="flex-1 flex items-center justify-center gap-2 py-3 text-xs text-muted-foreground hover:text-foreground hover:bg-muted transition-colors min-h-[44px]">
                     <Download size={13} /> 다운로드

@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useRef, useCallback, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import {
   Sparkles,
   ChevronDown,
@@ -13,6 +13,8 @@ import {
   Anchor,
   BookOpen,
   ZoomIn,
+  AlertCircle,
+  Loader2,
 } from "lucide-react";
 import { toast } from "sonner";
 import { SummaryBullet } from "../summary/SummaryBullet";
@@ -20,167 +22,27 @@ import type { SummaryItem } from "../summary/SummaryBullet";
 import type { Evidence } from "../evidence/EvidenceCard";
 import { EvidenceMappingPipeline } from "../evidence/EvidenceMappingPipeline";
 import { QualityMetrics } from "../evidence/QualityMetrics";
-
-// ─── Mock Data ────────────────────────────────────────────────────────────────
-
-const MOCK_SUMMARY_RUN = {
-  id: "run_001",
-  run_type: "SINGLE" as const,
-  document_id: "1",
-  document_name: "딥러닝 기반 자연어 처리 연구 논문.pdf",
-  style: "bullet" as const,
-  length: "medium" as const,
-  summary_bullets: 7,
-  evidence_top_k: 3,
-  mode: "deterministic" as const,
-  status: "completed" as const,
-  created_at: "2026.02.17 14:55",
-  latency_ms: 14520,
-};
-
-function makeEvidence(
-  id: string,
-  summary_item_id: string,
-  page_no: number,
-  line_start: number,
-  line_end: number,
-  quote: string,
-  score: number,
-  retrieval_score: number,
-  rerank_score: number,
-  supported: boolean
-): Evidence {
-  return {
-    id,
-    summary_item_id,
-    document_id: "1",
-    page_no,
-    line_start,
-    line_end,
-    quote,
-    score,
-    retrieval_score,
-    rerank_score,
-    method: "embed+rerank",
-    supported,
-  };
-}
-
-const SUMMARY_ITEMS: SummaryItem[] = [
-  {
-    id: "si_001",
-    item_order: 1,
-    text: "KoBERT-CLS 모델이 기존 BiLSTM 기반 분류기 대비 정확도 12.3%, F1-Score 9.8% 향상을 달성하였다.",
-    evidences: [
-      makeEvidence("ev_001a", "si_001", 4, 97, 99, "KoBERT-CLS 모델은 기존 BiLSTM 대비 정확도 12.3% 향상을 달성하였다. F1-Score 기준으로는 9.8% 향상되었으며, 이는 모든 비교 모델 중 최고 수준이다.", 0.972, 0.841, 0.956, true),
-      makeEvidence("ev_001b", "si_001", 1, 7, 8, "기존 BiLSTM 대비 정확도 12.3%, F1-Score 9.8% 향상을 달성하였으며, KorNLI, KorSTS, NSMC, PAWS-X 4종 벤치마크에서 SOTA를 기록했습니다.", 0.891, 0.762, 0.884, true),
-      makeEvidence("ev_001c", "si_001", 3, 58, 60, "사전 학습된 KoBERT를 백본으로 사용하며, [CLS] 토큰의 최종 은닉 상태를 분류 헤드에 전달한다.", 0.643, 0.612, 0.634, false),
-    ],
-  },
-  {
-    id: "si_002",
-    item_order: 2,
-    text: "KorNLI, KorSTS, NSMC, PAWS-X 4종의 공개 벤치마크에서 각각 93.2%, 87.4%, 91.8%, 88.6%를 기록하며 SOTA를 달성하였다.",
-    evidences: [
-      makeEvidence("ev_002a", "si_002", 4, 94, 96, "KorNLI: 93.2%, KorSTS: 87.4%, NSMC: 91.8%, PAWS-X: 88.6%. 4종 벤치마크 모두에서 기존 최고 성능(SOTA)을 달성하였다.", 0.958, 0.881, 0.947, true),
-      makeEvidence("ev_002b", "si_002", 1, 8, 8, "KorNLI, KorSTS, NSMC, PAWS-X 4종 벤치마크에서 SOTA를 기록했습니다.", 0.834, 0.721, 0.826, true),
-      makeEvidence("ev_002c", "si_002", 4, 92, 92, "Table 1은 기존 모델들과의 상세 비교를 나타낸다.", 0.534, 0.502, 0.521, false),
-    ],
-  },
-  {
-    id: "si_003",
-    item_order: 3,
-    text: "한국어 형태소 분석기 연동으로 OOV(Out-Of-Vocabulary) 비율을 기존 3.7%에서 1.1%로 감소시켰으며, 이는 최종 성능 향상의 주요 요인이다.",
-    evidences: [
-      makeEvidence("ev_003a", "si_003", 5, 134, 135, "형태소 분석기 연동으로 OOV 비율을 3.7%→1.1%로 감소시켰으며, 이는 최종 성능 향상의 주요 요인으로 분석된다.", 0.934, 0.832, 0.921, true),
-      makeEvidence("ev_003b", "si_003", 3, 59, 59, "사전 학습된 KoBERT를 백본으로 사용하며, 형태소 분석기와 연동한 토크나이저를 적용하였다.", 0.712, 0.653, 0.698, true),
-    ],
-  },
-  {
-    id: "si_004",
-    item_order: 4,
-    text: "금융 문서 분류(93.4%), 의료 차트 분석(89.7%), 법률 조항 분류(91.2%) 세 가지 실제 산업 환경에서 유효성을 검증하였다.",
-    evidences: [
-      makeEvidence("ev_004a", "si_004", 5, 137, 137, "금융 문서 93.4%, 의료 차트 89.7%, 법률 조항 91.2%로 범용성을 입증하였다.", 0.921, 0.812, 0.914, true),
-      makeEvidence("ev_004b", "si_004", 1, 6, 6, "본 연구는 BERT 기반 한국어 텍스트 분류 시스템을 제안합니다.", 0.623, 0.571, 0.612, false),
-    ],
-  },
-  {
-    id: "si_005",
-    item_order: 5,
-    text: "학습 데이터셋은 총 48만 건의 한국어 레이블 텍스트로 구성되었으며, 문어체 75%, 구어체 25%의 비율로 분포되어 있다.",
-    evidences: [
-      makeEvidence("ev_005a", "si_005", 3, 62, 63, "학습률: 2e-5, 배치 크기: 32, 에폭: 10, 옵티마이저: AdamW. 드롭아웃: 0.1, 최대 시퀀스 길이: 512", 0.756, 0.702, 0.749, true),
-    ],
-  },
-  {
-    id: "si_006",
-    item_order: 6,
-    text: "도메인 적응형 파인튜닝 전략을 수립하여 소량 레이블 데이터 환경에서도 안정적인 성능을 보장한다.",
-    evidences: [
-      makeEvidence("ev_006a", "si_006", 3, 58, 60, "사전 학습된 KoBERT를 백본으로 사용하며, [CLS] 토큰의 최종 은닉 상태를 분류 헤드에 전달한다.", 0.698, 0.612, 0.687, true),
-    ],
-  },
-  {
-    id: "si_007",
-    item_order: 7,
-    text: "본 연구의 핵심 기여는 3가지로 요약된다: 토크나이저 개선, 도메인 적응형 파인튜닝, 데이터 증강 기법 제안.",
-    evidences: [
-      makeEvidence("ev_007a", "si_007", 5, 133, 133, "본 연구에서는 KoBERT 기반 한국어 텍스트 분류 모델을 제안하였다.", 0.812, 0.734, 0.804, true),
-      makeEvidence("ev_007b", "si_007", 1, 5, 8, "본 연구는 BERT 기반 한국어 텍스트 분류 시스템을 제안합니다. 기존 BiLSTM 대비 정확도 12.3%, F1-Score 9.8% 향상을 달성하였으며, 4종 벤치마크에서 SOTA를 기록했습니다.", 0.778, 0.698, 0.765, true),
-    ],
-  },
-];
-
-// ─── Viewer mock lines ─────────────────────────────────────────────────────────
-const VIEWER_LINES: Record<number, { lineNo: number; text: string }[]> = {
-  1: [
-    { lineNo: 1, text: "딥러닝 기반 자연어 처리 연구" },
-    { lineNo: 5, text: "【초록】" },
-    { lineNo: 6, text: "본 연구는 BERT 기반 한국어 텍스트 분류 시스템을 제안합니다." },
-    { lineNo: 7, text: "기존 BiLSTM 대비 정확도 12.3%, F1-Score 9.8% 향상을 달성하였으며," },
-    { lineNo: 8, text: "KorNLI, KorSTS, NSMC, PAWS-X 4종 벤치마크에서 SOTA를 기록했습니다." },
-  ],
-  3: [
-    { lineNo: 57, text: "3.1 모델 구조 및 학습 전략" },
-    { lineNo: 58, text: "제안하는 모델의 전체 아키텍처는 Fig. 2와 같다." },
-    { lineNo: 59, text: "사전 학습된 KoBERT를 백본으로 사용하며," },
-    { lineNo: 60, text: "[CLS] 토큰의 최종 은닉 상태를 분류 헤드에 전달한다." },
-    { lineNo: 62, text: "학습률: 2e-5, 배치 크기: 32, 에폭: 10" },
-    { lineNo: 63, text: "드롭아웃: 0.1, 최대 시퀀스 길이: 512" },
-  ],
-  4: [
-    { lineNo: 89, text: "4. 실험 결과" },
-    { lineNo: 92, text: "Table 1은 기존 모델들과의 상세 비교를 나타낸다." },
-    { lineNo: 94, text: "KorNLI: 93.2%, KorSTS: 87.4%, NSMC: 91.8%, PAWS-X: 88.6%" },
-    { lineNo: 95, text: "4종 벤치마크 모두에서 기존 최고 성능(SOTA)을 달성하였다." },
-    { lineNo: 97, text: "KoBERT-CLS 모델은 기존 BiLSTM 대비 정확도 12.3% 향상을 달성하였다." },
-    { lineNo: 98, text: "F1-Score 기준으로는 9.8% 향상되었으며," },
-  ],
-  5: [
-    { lineNo: 131, text: "5. 결론" },
-    { lineNo: 133, text: "본 연구에서는 KoBERT 기반 한국어 텍스트 분류 모델을 제안하였다." },
-    { lineNo: 134, text: "형태소 분석기 연동으로 OOV 비율을 3.7%→1.1%로 감소시켰으며," },
-    { lineNo: 135, text: "이는 최종 성능 향상의 주요 요인으로 분석된다." },
-    { lineNo: 137, text: "금융 문서 93.4%, 의료 차트 89.7%, 법률 조항 91.2%로 범용성을 입증하였다." },
-  ],
-};
-
-// ─── Options types ────────────────────────────────────────────────────────────
-type SummaryStyle = "bullet" | "executive" | "study" | "action_items";
-type SummaryLength = "short" | "medium" | "long";
-type SummaryMode = "deterministic" | "best_effort";
+import { api, SummaryRun, Line } from "../../lib/api";
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export default function AnalysisPage() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const docId = searchParams.get("docId");
+
+  // Data state
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [summaryRun, setSummaryRun] = useState<SummaryRun | null>(null);
+  const [summaryItems, setSummaryItems] = useState<SummaryItem[]>([]);
+  const [viewerLines, setViewerLines] = useState<Line[]>([]);
 
   // Summary options
-  const [style, setStyle] = useState<SummaryStyle>("bullet");
-  const [length, setLength] = useState<SummaryLength>("medium");
+  const [style, setStyle] = useState<any>("bullet");
+  const [length, setLength] = useState<any>("medium");
   const [bulletCount, setBulletCount] = useState(7);
   const [topK, setTopK] = useState(3);
-  const [mode, setMode] = useState<SummaryMode>("deterministic");
+  const [mode, setMode] = useState<any>("deterministic");
   const [optionsOpen, setOptionsOpen] = useState(false);
 
   // Active evidence for line highlight
@@ -197,14 +59,63 @@ export default function AnalysisPage() {
   // Re-run state
   const [running, setRunning] = useState(false);
 
+  // Initial Fetch
+  useEffect(() => {
+    if (!docId) {
+      setLoading(false);
+      setError("문서 ID가 지정되지 않았습니다.");
+      return;
+    }
+
+    const fetchData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        // Fetch summary data
+        const data = await api.getSummary(docId);
+        setSummaryRun(data.summary_run);
+        setSummaryItems(data.items);
+
+        // Fetch first page lines for viewer by default (if available)
+        // In a real app, we might fetch lines as needed based on highlightPage.
+        const lines = await api.getLines(docId, 1);
+        setViewerLines(lines);
+
+      } catch (err: any) {
+        console.error("Fetch error:", err);
+        setError("데이터를 불러오는 중 오류가 발생했습니다.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [docId]);
+
   // Find active evidence data
   const activeEvidence: Evidence | null = (() => {
-    for (const item of SUMMARY_ITEMS) {
+    for (const item of summaryItems) {
       const found = item.evidences.find((e) => e.id === activeEvidenceId);
       if (found) return found;
     }
     return null;
   })();
+
+  // When highlightPage changes → fetch those lines
+  useEffect(() => {
+    if (docId && highlightPage) {
+      const fetchNewLines = async () => {
+        try {
+          const lines = await api.getLines(docId, highlightPage);
+          setViewerLines(lines);
+        } catch (err) {
+          console.error("Failed to fetch viewer lines:", err);
+        }
+      };
+      fetchNewLines();
+    }
+  }, [docId, highlightPage]);
 
   // When evidence activates → highlight lines
   const handleEvidenceActivate = useCallback(
@@ -218,7 +129,7 @@ export default function AnalysisPage() {
       }
       // Find evidence
       let ev: Evidence | null = null;
-      for (const item of SUMMARY_ITEMS) {
+      for (const item of summaryItems) {
         const found = item.evidences.find((e) => e.id === evidenceId);
         if (found) { ev = found; break; }
       }
@@ -233,15 +144,15 @@ export default function AnalysisPage() {
           if (firstLine && lineRefs.current[firstLine]) {
             lineRefs.current[firstLine]?.scrollIntoView({ behavior: "smooth", block: "center" });
           }
-        }, 50);
+        }, 300); // Slightly longer wait for potential layout shifts or page loads
         // Fade after 2s
         fadeTimerRef.current = setTimeout(() => {
           setHighlightedLines([]);
           setActiveEvidenceId(null);
-        }, 2000);
+        }, 5000); // Wait longer on real data
       }
     },
-    []
+    [summaryItems]
   );
 
   useEffect(() => {
@@ -253,8 +164,10 @@ export default function AnalysisPage() {
   // Export handlers
   const handleExport = (type: string) => {
     setExportOpen(false);
+    if (!summaryItems.length) return;
+
     if (type === "markdown") {
-      const md = SUMMARY_ITEMS.map(
+      const md = summaryItems.map(
         (item) => `- ${item.text}`
       ).join("\n");
       navigator.clipboard.writeText(md);
@@ -262,7 +175,7 @@ export default function AnalysisPage() {
       setTimeout(() => setCopiedKey(null), 1800);
       toast.success("Markdown이 클립보드에 복사되었습니다.");
     } else if (type === "json") {
-      const json = JSON.stringify({ summary_run: MOCK_SUMMARY_RUN, items: SUMMARY_ITEMS }, null, 2);
+      const json = JSON.stringify({ summary_run: summaryRun, items: summaryItems }, null, 2);
       navigator.clipboard.writeText(json);
       setCopiedKey("json");
       setTimeout(() => setCopiedKey(null), 1800);
@@ -275,19 +188,56 @@ export default function AnalysisPage() {
   };
 
   const handleRerun = async () => {
-    setRunning(true);
-    await new Promise((r) => setTimeout(r, 1800));
-    setRunning(false);
-    toast.success("요약 재실행 완료!");
+    if (!docId) return;
+    try {
+      setRunning(true);
+      const data = await api.rerunSummary(docId, {
+        style,
+        length,
+        summary_bullets: bulletCount,
+        evidence_top_k: topK,
+        mode
+      });
+      setSummaryRun(data.summary_run);
+      setSummaryItems(data.items);
+      toast.success("요약 재실행 완료!");
+    } catch (err) {
+      toast.error("요약 재실행 중 오류가 발생했습니다.");
+    } finally {
+      setRunning(false);
+    }
   };
 
-  // Viewer lines to display (all pages' lines merged, filtered by highlight page)
-  const viewerLines = (() => {
-    const allLines: { lineNo: number; text: string }[] = [];
-    Object.values(VIEWER_LINES).forEach((lines) => allLines.push(...lines));
-    allLines.sort((a, b) => a.lineNo - b.lineNo);
-    return allLines;
-  })();
+  // Loading state UI
+  if (loading) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
+        <Loader2 className="w-10 h-10 text-[var(--glin-accent)] animate-spin" />
+        <p className="text-muted-foreground font-medium">분석 결과를 불러오는 중입니다...</p>
+      </div>
+    );
+  }
+
+  // Error state UI
+  if (error || !summaryRun) {
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center p-8 text-center space-y-4">
+        <div className="w-16 h-16 rounded-full bg-red-100 flex items-center justify-center text-red-500">
+          <AlertCircle size={32} />
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-lg font-bold text-foreground">{error || "데이터가 없습니다."}</h3>
+          <p className="text-sm text-muted-foreground">분석할 문서를 먼저 업로드하거나 선택해 주세요.</p>
+        </div>
+        <button
+          onClick={() => router.push("/documents")}
+          className="px-6 py-2.5 rounded-xl bg-[var(--glin-accent)] text-white font-semibold hover:opacity-90 transition-all"
+        >
+          문서 목록으로 가기
+        </button>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col md:h-full md:overflow-hidden">
@@ -300,17 +250,17 @@ export default function AnalysisPage() {
           <Sparkles size={14} className="text-[var(--glin-accent)] flex-shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-sm font-semibold text-foreground leading-snug">
-              {MOCK_SUMMARY_RUN.document_name}
+              {summaryRun.document_name}
             </p>
             <div className="flex items-center flex-wrap gap-2 mt-1">
               <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Clock size={10} /> {MOCK_SUMMARY_RUN.created_at}
+                <Clock size={10} /> {summaryRun.created_at}
               </span>
               <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Cpu size={10} /> {(MOCK_SUMMARY_RUN.latency_ms / 1000).toFixed(1)}s
+                <Cpu size={10} /> {(summaryRun.latency_ms / 1000).toFixed(1)}s
               </span>
               <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                완료
+                {summaryRun.status === "ready" ? "완료" : summaryRun.status}
               </span>
             </div>
           </div>
@@ -378,21 +328,21 @@ export default function AnalysisPage() {
           <div className="flex items-center gap-2">
             <Sparkles size={14} className="text-[var(--glin-accent)] flex-shrink-0" />
             <p className="text-sm font-semibold text-foreground truncate">
-              {MOCK_SUMMARY_RUN.document_name}
+              {summaryRun.document_name}
             </p>
           </div>
           <div className="flex items-center gap-3 mt-0.5">
             <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-              <Clock size={9} /> {MOCK_SUMMARY_RUN.created_at}
+              <Clock size={9} /> {summaryRun.created_at}
             </span>
             <span className="text-[10px] text-muted-foreground flex items-center gap-1">
-              <Cpu size={9} /> {(MOCK_SUMMARY_RUN.latency_ms / 1000).toFixed(1)}s
+              <Cpu size={9} /> {(summaryRun.latency_ms / 1000).toFixed(1)}s
             </span>
             <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-              완료
+              {summaryRun.status === "ready" ? "완료" : summaryRun.status}
             </span>
             <span className="text-[10px] font-mono text-muted-foreground">
-              {MOCK_SUMMARY_RUN.mode}
+              {summaryRun.mode}
             </span>
           </div>
         </div>
@@ -474,8 +424,8 @@ export default function AnalysisPage() {
                 </span>
                 <span
                   className={`text-[10px] font-semibold px-2 py-0.5 rounded-full hidden sm:inline ${mode === "deterministic"
-                      ? "bg-[var(--glin-accent-light)] text-[var(--glin-accent)]"
-                      : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
+                    ? "bg-[var(--glin-accent-light)] text-[var(--glin-accent)]"
+                    : "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400"
                     }`}
                 >
                   {mode}
@@ -495,7 +445,7 @@ export default function AnalysisPage() {
                     스타일
                   </label>
                   <div className="flex flex-wrap gap-2">
-                    {(["bullet", "executive", "study", "action_items"] as SummaryStyle[]).map((s) => (
+                    {(["bullet", "executive", "study", "action_items"] as any[]).map((s) => (
                       <button
                         key={s}
                         onClick={() => setStyle(s)}
@@ -515,7 +465,7 @@ export default function AnalysisPage() {
                     길이
                   </label>
                   <div className="flex gap-2">
-                    {(["short", "medium", "long"] as SummaryLength[]).map((l) => (
+                    {(["short", "medium", "long"] as any[]).map((l) => (
                       <button
                         key={l}
                         onClick={() => setLength(l)}
@@ -575,13 +525,13 @@ export default function AnalysisPage() {
                     모드
                   </label>
                   <div className="flex items-center gap-2 p-1 rounded-xl bg-muted w-full sm:w-fit">
-                    {(["deterministic", "best_effort"] as SummaryMode[]).map((m) => (
+                    {(["deterministic", "best_effort"] as any[]).map((m) => (
                       <button
                         key={m}
                         onClick={() => setMode(m)}
                         className={`flex-1 sm:flex-none px-3 py-2 rounded-lg text-[11px] font-semibold transition-all min-h-[36px] ${mode === m
-                            ? "bg-[var(--card)] text-foreground shadow-sm"
-                            : "text-muted-foreground hover:text-foreground"
+                          ? "bg-[var(--card)] text-foreground shadow-sm"
+                          : "text-muted-foreground hover:text-foreground"
                           }`}
                       >
                         {m}
@@ -597,7 +547,7 @@ export default function AnalysisPage() {
           <div className="md:flex-1 md:overflow-y-auto px-4 py-4 space-y-4">
             <div className="flex items-center justify-between mb-1">
               <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">
-                요약 결과 · {SUMMARY_ITEMS.length}개 불릿
+                요약 결과 · {summaryItems.length}개 불릿
               </p>
               {activeEvidence && (
                 <span className="text-xs text-[var(--glin-accent)] flex items-center gap-1 animate-pulse">
@@ -606,18 +556,24 @@ export default function AnalysisPage() {
               )}
             </div>
 
-            {SUMMARY_ITEMS.slice(0, bulletCount).map((item, idx) => (
-              <SummaryBullet
-                key={item.id}
-                item={{
-                  ...item,
-                  evidences: item.evidences.slice(0, topK),
-                }}
-                activeEvidenceId={activeEvidenceId}
-                onEvidenceActivate={handleEvidenceActivate}
-                defaultOpen={idx === 0}
-              />
-            ))}
+            {summaryItems.length === 0 ? (
+              <div className="bg-[var(--card)] rounded-xl border border-[var(--border)] p-12 text-center text-muted-foreground">
+                표시할 요약 내용이 없습니다.
+              </div>
+            ) : (
+              summaryItems.slice(0, bulletCount).map((item, idx) => (
+                <SummaryBullet
+                  key={item.id}
+                  item={{
+                    ...item,
+                    evidences: item.evidences.slice(0, topK),
+                  }}
+                  activeEvidenceId={activeEvidenceId}
+                  onEvidenceActivate={handleEvidenceActivate}
+                  defaultOpen={idx === 0}
+                />
+              ))
+            )}
 
             {/* Mobile: Quality + Pipeline below bullets */}
             <div className="lg:hidden space-y-4 pt-2 border-t border-[var(--border)] mt-2">
@@ -636,7 +592,7 @@ export default function AnalysisPage() {
               <span className="text-xs font-medium text-foreground">원문 뷰어</span>
             </div>
             <button
-              onClick={() => router.push(`/documents/${MOCK_SUMMARY_RUN.document_id}`)}
+              onClick={() => router.push(`/documents/${summaryRun.document_id}`)}
               className="flex items-center gap-1 text-[10px] text-[var(--glin-accent)] hover:underline"
             >
               <ZoomIn size={10} />
@@ -648,41 +604,47 @@ export default function AnalysisPage() {
           <div className="flex-1 overflow-y-auto px-3 py-3 font-mono text-xs bg-[var(--card)]">
             <div className="rounded-xl border border-[var(--border)] overflow-hidden bg-white dark:bg-[#1a2236] p-3">
               <p className="text-[10px] font-bold text-muted-foreground text-center mb-3 pb-2 border-b border-[var(--border)]">
-                {MOCK_SUMMARY_RUN.document_name}
+                {summaryRun.document_name}
               </p>
-              {viewerLines.map((line) => {
-                const isHighlighted = highlightedLines.includes(line.lineNo);
-                return (
-                  <div
-                    key={line.lineNo}
-                    ref={(el) => {
-                      lineRefs.current[line.lineNo] = el;
-                    }}
-                    className={`flex gap-2 rounded px-1.5 py-0.5 transition-all duration-300 ${isHighlighted
+              {viewerLines.length === 0 ? (
+                <div className="py-20 text-center text-[10px] text-muted-foreground italic">
+                  본문을 불러올 수 없습니다.
+                </div>
+              ) : (
+                viewerLines.map((line) => {
+                  const isHighlighted = highlightedLines.includes(line.lineNo);
+                  return (
+                    <div
+                      key={line.lineNo}
+                      ref={(el) => {
+                        lineRefs.current[line.lineNo] = el;
+                      }}
+                      className={`flex gap-2 rounded px-1.5 py-0.5 transition-all duration-300 ${isHighlighted
                         ? "bg-[var(--glin-evidence-bg)] border border-[var(--glin-evidence-border)] shadow-sm"
                         : ""
-                      }`}
-                  >
-                    <span
-                      className={`flex-shrink-0 text-[10px] w-6 text-right select-none leading-relaxed ${isHighlighted
+                        }`}
+                    >
+                      <span
+                        className={`flex-shrink-0 text-[10px] w-6 text-right select-none leading-relaxed ${isHighlighted
                           ? "text-[var(--glin-accent)] font-bold"
                           : "text-muted-foreground/40"
-                        }`}
-                    >
-                      {line.lineNo}
-                    </span>
-                    <span
-                      className={`flex-1 leading-relaxed ${isHighlighted ? "text-foreground font-medium" : "text-foreground/70"
-                        }`}
-                    >
-                      {line.text}
-                    </span>
-                    {isHighlighted && (
-                      <Anchor size={9} className="text-[var(--glin-accent)] flex-shrink-0 mt-0.5" />
-                    )}
-                  </div>
-                );
-              })}
+                          }`}
+                      >
+                        {line.lineNo}
+                      </span>
+                      <span
+                        className={`flex-1 leading-relaxed ${isHighlighted ? "text-foreground font-medium" : "text-foreground/70"
+                          }`}
+                      >
+                        {line.text}
+                      </span>
+                      {isHighlighted && (
+                        <Anchor size={9} className="text-[var(--glin-accent)] flex-shrink-0 mt-0.5" />
+                      )}
+                    </div>
+                  );
+                })
+              )}
               {!activeEvidence && (
                 <p className="text-[10px] text-muted-foreground/50 text-center mt-3 pt-2 border-t border-[var(--border)]">
                   근거 카드를 클릭하면 해당 줄이 하이라이트됩니다
