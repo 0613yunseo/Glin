@@ -155,7 +155,11 @@ export default function SettingsPage() {
     const fetchUser = async () => {
       try {
         setLoading(true);
+
+        console.log("[Settings] calling getMe...");
         const user = await api.getMe();
+        console.log("[Settings] getMe result:", user);
+
         setName(user.name);
         setEmail(user.email);
         setError(null);

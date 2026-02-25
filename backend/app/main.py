@@ -4,6 +4,7 @@ load_dotenv()
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.domains.documents import router as documents_router
+from app.domains.users.router import router as users_router
 
 app = FastAPI(title="Glin Backend")
 
@@ -16,6 +17,7 @@ app.add_middleware(
 )
 
 app.include_router(documents_router.router)
+app.include_router(users_router)
 
 from app.core.supabase_client import test_supabase_connection
 

@@ -103,36 +103,58 @@ export default function UploadPage() {
   const [progress, setProgress] = useState(0);
   const [ingestStep, setIngestStep] = useState(0);
   const [done, setDone] = useState(false);
-
+  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
   const handleFile = useCallback(
     async (file: File) => {
       if (!file || !file.name.endsWith(".pdf")) return;
+
       setUploadedFile(file);
       setUploading(true);
-      setProgress(0);
+      setProgress(10);
       setIngestStep(0);
+      setDone(false);
 
-      // (Conceptual) Ingest simulation
-      for (let i = 0; i <= 40; i += 5) {
-        await new Promise((r) => setTimeout(r, 60));
-        setProgress(i);
+      try {
+        const form = new FormData();
+        // 백엔드가 기대하는 필드명이 보통 "file" 또는 "pdf" 인데,
+        // FastAPI UploadFile이면 대부분 file로 받게 작성되어 있음.
+        form.append("file", file);
+
+        // ✅ next.config.ts rewrites를 쓰고 싶으면 "/api/documents/" 로 보내도 됨.
+        // 하지만 지금은 명확하게 백엔드로 직결 추천.
+        const res = await fetch(`${API_BASE_URL}/documents/`, {
+          method: "POST",
+          body: form,
+        });
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(`Upload failed: ${res.status} ${res.statusText} ${text}`);
+        }
+
+        setProgress(60);
+        setIngestStep(1);
+
+        // 서버가 즉시 ready가 아닐 수도 있으니, UI상 잠깐만 진행 표시
+        await new Promise((r) => setTimeout(r, 300));
+        setProgress(85);
+        setIngestStep(2);
+
+        await new Promise((r) => setTimeout(r, 200));
+        setProgress(100);
+
+        setUploading(false);
+        setDone(true);
+
+        setTimeout(() => router.push("/documents"), 400);
+      } catch (e) {
+        console.error(e);
+        setUploading(false);
+        setDone(false);
+        setProgress(0);
+        // 여기서 toast/alert 원하는 방식으로
+        alert(`업로드 실패: ${e instanceof Error ? e.message : String(e)}`);
       }
-      setIngestStep(1);
-
-      for (let i = 41; i <= 80; i += 4) {
-        await new Promise((r) => setTimeout(r, 70));
-        setProgress(i);
-      }
-      setIngestStep(2);
-
-      for (let i = 81; i <= 100; i += 3) {
-        await new Promise((r) => setTimeout(r, 50));
-        setProgress(i);
-      }
-
-      setUploading(false);
-      setDone(true);
-      setTimeout(() => router.push("/documents"), 900);
     },
     [router]
   );
