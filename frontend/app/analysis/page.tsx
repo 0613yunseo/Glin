@@ -1,5 +1,10 @@
-import AnalysisPage from "@/components/pages/AnalysisPage";
+import { Suspense } from "react";
+import AnalysisClient from "./AnalysisClient";
 
 export default function Page() {
-    return <AnalysisPage />;
+    return (
+        <Suspense fallback={<div className="p-6">Loading...</div>}>
+            <AnalysisClient />
+        </Suspense>
+    );
 }
