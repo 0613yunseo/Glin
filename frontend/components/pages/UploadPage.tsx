@@ -6,10 +6,8 @@ import {
   Upload,
   FileText,
   CheckCircle2,
-  Clock,
   ChevronRight,
   Brain,
-  X,
   Loader2,
   FilePlus,
   Zap,
@@ -61,10 +59,10 @@ function IngestStepper({ activeStep }: { activeStep: number }) {
             <div className="flex flex-col items-center flex-shrink-0">
               <div
                 className={`w-7 h-7 rounded-full flex items-center justify-center text-[11px] font-bold transition-all ${isDone
-                  ? "bg-green-500 text-white"
-                  : isActive
-                    ? "text-white"
-                    : "bg-muted text-muted-foreground"
+                    ? "bg-green-500 text-white"
+                    : isActive
+                      ? "text-white"
+                      : "bg-muted text-muted-foreground"
                   }`}
                 style={isActive ? { background: "var(--glin-accent-gradient)" } : {}}
               >
@@ -72,20 +70,17 @@ function IngestStepper({ activeStep }: { activeStep: number }) {
               </div>
               <p
                 className={`text-[10px] font-semibold mt-1.5 whitespace-nowrap ${isDone
-                  ? "text-green-600 dark:text-green-400"
-                  : isActive
-                    ? "text-[var(--glin-accent)]"
-                    : "text-muted-foreground"
+                    ? "text-green-600 dark:text-green-400"
+                    : isActive
+                      ? "text-[var(--glin-accent)]"
+                      : "text-muted-foreground"
                   }`}
               >
                 {step.label}
               </p>
             </div>
             {i < INGEST_STEPS.length - 1 && (
-              <div
-                className={`flex-1 h-0.5 mx-2 rounded-full transition-all ${i < activeStep ? "bg-green-400" : "bg-muted"
-                  }`}
-              />
+              <div className={`flex-1 h-0.5 mx-2 rounded-full transition-all ${i < activeStep ? "bg-green-400" : "bg-muted"}`} />
             )}
           </React.Fragment>
         );
@@ -97,16 +92,17 @@ function IngestStepper({ activeStep }: { activeStep: number }) {
 export default function UploadPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [dragOver, setDragOver] = useState(false);
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
   const [ingestStep, setIngestStep] = useState(0);
   const [done, setDone] = useState(false);
-  const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000";
+
   const handleFile = useCallback(
     async (file: File) => {
-      if (!file || !file.name.endsWith(".pdf")) return;
+      if (!file || !file.name.toLowerCase().endsWith(".pdf")) return;
 
       setUploadedFile(file);
       setUploading(true);
@@ -115,27 +111,32 @@ export default function UploadPage() {
       setDone(false);
 
       try {
-        const form = new FormData();
-        // 백엔드가 기대하는 필드명이 보통 "file" 또는 "pdf" 인데,
-        // FastAPI UploadFile이면 대부분 file로 받게 작성되어 있음.
-        form.append("file", file);
+        // ✅ 매번 유니크한 file_path로 만들어서 409 중복 방지
+        const uniquePath = `/tmp/${crypto.randomUUID()}-${file.name}`;
 
-        // ✅ next.config.ts rewrites를 쓰고 싶으면 "/api/documents/" 로 보내도 됨.
-        // 하지만 지금은 명확하게 백엔드로 직결 추천.
-        const res = await fetch(`${API_BASE_URL}/documents/`, {
+        // ✅ 프론트(브라우저)는 백엔드 직접 호출하지 말고, Next API route로만 호출
+        const res = await fetch(`/api/documents`, {
           method: "POST",
-          body: form,
+          headers: {
+            "Content-Type": "application/json",
+            accept: "application/json",
+          },
+          body: JSON.stringify({
+            file_path: uniquePath,
+            file_name: file.name,
+          }),
         });
 
         if (!res.ok) {
           const text = await res.text().catch(() => "");
-          throw new Error(`Upload failed: ${res.status} ${res.statusText} ${text}`);
+          throw new Error(`Upload failed: ${res.status} ${res.statusText}${text ? ` | ${text}` : ""}`);
         }
+
+        await res.json().catch(() => null);
 
         setProgress(60);
         setIngestStep(1);
 
-        // 서버가 즉시 ready가 아닐 수도 있으니, UI상 잠깐만 진행 표시
         await new Promise((r) => setTimeout(r, 300));
         setProgress(85);
         setIngestStep(2);
@@ -152,7 +153,6 @@ export default function UploadPage() {
         setUploading(false);
         setDone(false);
         setProgress(0);
-        // 여기서 toast/alert 원하는 방식으로
         alert(`업로드 실패: ${e instanceof Error ? e.message : String(e)}`);
       }
     },
@@ -171,7 +171,6 @@ export default function UploadPage() {
 
   return (
     <div className="p-8 max-w-5xl mx-auto space-y-8">
-      {/* Hero */}
       <div className="text-center md:text-left">
         <h1 className="text-foreground">글(line)에 꽂히는 요약</h1>
         <p className="text-muted-foreground text-sm mt-1.5">
@@ -179,11 +178,10 @@ export default function UploadPage() {
         </p>
       </div>
 
-      {/* Upload zone */}
       <div
         className={`relative rounded-2xl border-2 border-dashed transition-all cursor-pointer overflow-hidden ${dragOver
-          ? "border-[var(--glin-accent)] bg-[var(--glin-accent-light)]"
-          : "border-[var(--border)] bg-[var(--card)] hover:border-[var(--glin-accent)]/60 hover:bg-[var(--glin-accent-light)]/30"
+            ? "border-[var(--glin-accent)] bg-[var(--glin-accent-light)]"
+            : "border-[var(--border)] bg-[var(--card)] hover:border-[var(--glin-accent)]/60 hover:bg-[var(--glin-accent-light)]/30"
           }`}
         style={{ minHeight: 200 }}
         onDragOver={(e) => {
@@ -227,7 +225,7 @@ export default function UploadPage() {
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {ingestStep === 0
-                        ? "파일 업로드 중..."
+                        ? "레코드 생성 중..."
                         : ingestStep === 1
                           ? "텍스트 추출 · 라인 인덱싱..."
                           : "임베딩 벡터 생성 중..."}
@@ -262,7 +260,7 @@ export default function UploadPage() {
               <p className="text-sm text-muted-foreground mb-5">
                 PDF 전용 · 최대 200MB · 로컬 처리
               </p>
-              {/* Feature chips */}
+
               <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-4 sm:justify-center w-full sm:w-auto">
                 {[
                   { icon: <Zap size={13} />, label: "평균 처리 12초" },
@@ -284,7 +282,6 @@ export default function UploadPage() {
         </div>
       </div>
 
-      {/* Import from external */}
       <div>
         <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-3">
           외부에서 가져오기
@@ -305,12 +302,8 @@ export default function UploadPage() {
             </span>
           </button>
         </div>
-        <p className="text-[11px] text-muted-foreground mt-2 px-1 leading-relaxed">
-          * Google Drive / Notion 연동은 PDF 파일을 가져오는 기능입니다. 내보내기는 요약 분석 페이지에서 가능합니다.
-        </p>
       </div>
 
-      {/* Recent documents (Mock data removed) */}
       <div>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-foreground">최근 문서</h2>
@@ -322,7 +315,6 @@ export default function UploadPage() {
           </button>
         </div>
 
-        {/* Empty state UI */}
         <div className="py-12 border border-[var(--border)] border-dashed rounded-2xl bg-[var(--card)] flex flex-col items-center justify-center text-center">
           <FileText size={32} className="text-muted-foreground/30 mb-3" />
           <p className="text-sm font-medium text-muted-foreground">최근 문서가 없습니다.</p>

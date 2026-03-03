@@ -182,7 +182,7 @@ export default function DocumentDetailPage() {
         </span>
         <div className="ml-auto flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground hidden sm:inline">
-            {doc.page_count}페이지 · {doc.lines.toLocaleString()}줄
+            {(doc.page_count ?? pages.length ?? 0)}페이지 · {currentLines.length.toLocaleString()}줄
           </span>
           <button
             onClick={() => router.push(`/analysis?docId=${doc.id}`)}
