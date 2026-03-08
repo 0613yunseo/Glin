@@ -1,5 +1,4 @@
-// frontend/app/api/documents/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 
 const API_BASE = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
@@ -13,12 +12,15 @@ export async function GET() {
     const text = await res.text();
     return new NextResponse(text, {
         status: res.status,
-        headers: { "content-type": res.headers.get("content-type") || "application/json" },
+        headers: {
+            "content-type": res.headers.get("content-type") || "application/json",
+        },
     });
 }
 
-export async function POST(req: Request) {
-    const body = await req.text(); // 그대로 전달
+export async function POST(req: NextRequest) {
+    const body = await req.text();
+
     const res = await fetch(`${API_BASE}/documents/`, {
         method: "POST",
         headers: {
@@ -32,6 +34,8 @@ export async function POST(req: Request) {
     const text = await res.text();
     return new NextResponse(text, {
         status: res.status,
-        headers: { "content-type": res.headers.get("content-type") || "application/json" },
+        headers: {
+            "content-type": res.headers.get("content-type") || "application/json",
+        },
     });
 }
