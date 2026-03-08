@@ -1,38 +1,27 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
-import { useRouter } from "next/navigation";
+import React, { useState } from "react";
 import { Moon, Sun, User, Settings, LogOut, Menu } from "lucide-react";
 import { useTheme } from "../../context/ThemeContext";
 import { GlinLogo } from "../GlinLogo";
+import { useRouter } from "next/navigation";
 
 interface HeaderProps {
   onMenuClick: () => void;
 }
-
-// ✅ TODO: Auth 연동 전 임시 사용자 타입/값
-type UserProfile = { name: string; email: string } | null;
 
 export function Header({ onMenuClick }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
   const router = useRouter();
   const [profileOpen, setProfileOpen] = useState(false);
 
-  // ✅ 목업 제거: 하드코딩 문자열 대신 null (연동 후 setUser로 채우면 됨)
-  const [user] = useState<UserProfile>(null);
-
-  const displayName = user?.name?.trim() || "내 계정";
-  const displayEmail = user?.email?.trim() || "";
-
-  const avatarInitial = useMemo(() => {
-    const first = displayName?.trim()?.[0];
-    // "내 계정"이면 이니셜은 ?로
-    return displayName === "내 계정" ? "?" : first ?? "?";
-  }, [displayName]);
+  // 임시 사용자 표시값 (더미 데이터 제거용)
+  const userName = "사용자";
+  const userEmail = "로그인 정보 없음";
+  const userInitial = "사";
 
   const handleLogout = () => {
     setProfileOpen(false);
-    // TODO: auth 토큰/세션 정리 로직 붙이면 여기서 처리
     router.push("/login");
   };
 
@@ -50,18 +39,19 @@ export function Header({ onMenuClick }: HeaderProps) {
         >
           <Menu size={20} />
         </button>
+
         {/* GLIN logo — mobile only */}
         <div className="md:hidden">
           <GlinLogo size="md" />
         </div>
       </div>
 
-      {/* Spacer — pushes right actions to edge */}
+      {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Right: theme toggle + profile */}
+      {/* Right actions */}
       <div className="flex items-center gap-1 px-3">
-        {/* Theme toggle — icon only on mobile, icon+text on sm+ */}
+        {/* Theme toggle */}
         <button
           onClick={toggleTheme}
           className="flex items-center justify-center gap-2 w-11 h-11 md:w-auto md:h-auto md:px-3 md:py-2 rounded-xl text-muted-foreground hover:text-foreground hover:bg-muted transition-all"
@@ -71,17 +61,13 @@ export function Header({ onMenuClick }: HeaderProps) {
             <>
               <Moon size={18} className="md:hidden" />
               <Moon size={14} className="hidden md:inline" />
-              <span className="hidden md:inline text-xs font-medium">
-                야간 모드
-              </span>
+              <span className="hidden md:inline text-xs font-medium">야간 모드</span>
             </>
           ) : (
             <>
               <Sun size={18} className="md:hidden" />
               <Sun size={14} className="hidden md:inline" />
-              <span className="hidden md:inline text-xs font-medium">
-                밝은 모드
-              </span>
+              <span className="hidden md:inline text-xs font-medium">밝은 모드</span>
             </>
           )}
         </button>
@@ -91,17 +77,15 @@ export function Header({ onMenuClick }: HeaderProps) {
           <button
             onClick={() => setProfileOpen((v) => !v)}
             className="flex items-center gap-2 pl-1.5 pr-1.5 md:pr-3 py-1.5 rounded-xl hover:bg-muted transition-all group min-h-[44px]"
-            aria-label="프로필 메뉴"
           >
             <div
               className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
               style={{ background: "var(--glin-accent-gradient)" }}
             >
-              {avatarInitial}
+              {userInitial}
             </div>
-
             <span className="text-sm font-medium text-foreground hidden md:inline">
-              {displayName}
+              {userName}
             </span>
           </button>
 
@@ -113,18 +97,8 @@ export function Header({ onMenuClick }: HeaderProps) {
               />
               <div className="absolute right-0 top-full mt-2 w-52 rounded-xl bg-[var(--card)] border border-[var(--border)] shadow-lg z-50 overflow-hidden py-1">
                 <div className="px-4 py-3 border-b border-[var(--border)]">
-                  <p className="text-sm font-semibold text-foreground">
-                    {displayName}
-                  </p>
-                  {displayEmail ? (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      {displayEmail}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted-foreground mt-0.5">
-                      로그인 정보 없음
-                    </p>
-                  )}
+                  <p className="text-sm font-semibold text-foreground">{userName}</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">{userEmail}</p>
                 </div>
 
                 <button

@@ -1,3 +1,5 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
@@ -70,6 +72,10 @@ interface SidebarProps {
 export function Sidebar({ onClose }: SidebarProps) {
   const router = useRouter();
 
+  const userName = "사용자";
+  const userEmail = "로그인 정보 없음";
+  const userInitial = "사";
+
   const handleLogout = () => {
     router.push("/login");
     onClose?.();
@@ -77,13 +83,11 @@ export function Sidebar({ onClose }: SidebarProps) {
 
   return (
     <div className="flex flex-col h-full bg-[var(--sidebar)] overflow-hidden">
-      {/* Logo area — height must match header (56px) */}
       <div
         className="flex items-center justify-between px-5 flex-shrink-0 border-b border-[var(--sidebar-border)]"
         style={{ height: 56 }}
       >
         <GlinLogo size="md" />
-        {/* Close button — mobile only */}
         {onClose && (
           <button
             onClick={onClose}
@@ -95,7 +99,6 @@ export function Sidebar({ onClose }: SidebarProps) {
         )}
       </div>
 
-      {/* Navigation */}
       <nav className="flex-1 overflow-y-auto px-3 py-4 space-y-0.5">
         <div className="mb-4">
           <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60 px-3 mb-2">
@@ -116,9 +119,7 @@ export function Sidebar({ onClose }: SidebarProps) {
         </div>
       </nav>
 
-      {/* Pro badge + User info */}
       <div className="flex-shrink-0 px-3 pb-4 pt-2 border-t border-[var(--sidebar-border)] space-y-3">
-        {/* Pro banner */}
         <div
           className="rounded-xl px-3 py-2.5 flex items-center gap-2"
           style={{ background: "var(--glin-accent-gradient)" }}
@@ -130,18 +131,17 @@ export function Sidebar({ onClose }: SidebarProps) {
           </div>
         </div>
 
-        {/* User row */}
         <div className="flex items-center gap-2.5 px-2 py-1.5 rounded-xl hover:bg-muted cursor-pointer transition-colors group">
           <div
             className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
             style={{ background: "var(--glin-accent-gradient)" }}
           >
-            김
+            {userInitial}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-sm font-semibold text-foreground truncate leading-tight">김민준</p>
+            <p className="text-sm font-semibold text-foreground truncate leading-tight">{userName}</p>
             <p className="text-[11px] text-muted-foreground truncate leading-tight">
-              minjun@glin.ai
+              {userEmail}
             </p>
           </div>
           <button

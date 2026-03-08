@@ -125,7 +125,7 @@ export default function SettingsPage() {
   const [error, setError] = useState<string | null>(null);
 
   // User details
-  const [name, setName] = useState("");
+  const [name, setName] = useState("사용자");
   const [email, setEmail] = useState("");
 
   // Core
