@@ -33,7 +33,7 @@ export interface Evidence {
     line_end: number;
     quote: string;
     score: number;
-    method: "embed+rerank" | "embed" | "rerank";
+    method: string;
     supported: boolean;
     retrieval_score?: number;
     rerank_score?: number;
@@ -66,6 +66,8 @@ export interface UserProfile {
     name: string;
     email: string;
 }
+
+const BACKEND = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
 
 async function request<T>(path: string, options?: RequestInit): Promise<T> {
     // ✅ 상대경로로만 호출 (Next rewrites를 타게 함)
@@ -114,10 +116,10 @@ export const api = {
 
     // Summary (백엔드에 없으면 404 날 수 있음)
     getSummary: (docId: string) =>
-        request<{ summary_run: SummaryRun; items: SummaryItem[] }>(`/api/ai/summary/${docId}`),
+        request<{ summary_run: SummaryRun; items: SummaryItem[] }>(`${BACKEND}/ai/summary/${docId}`),
 
     rerunSummary: (docId: string, options: any) =>
-        requestJson<{ summary_run: SummaryRun; items: SummaryItem[] }>(`/api/ai/summary`, {
+        requestJson<{ summary_run: SummaryRun; items: SummaryItem[] }>(`${BACKEND}/ai/summary`, {
             document_id: docId,
             ...options,
         }, { method: "POST" }),

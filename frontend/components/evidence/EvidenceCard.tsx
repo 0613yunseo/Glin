@@ -10,7 +10,7 @@ export interface Evidence {
   line_end: number;
   quote: string;
   score: number;
-  method: "embed+rerank" | "embed" | "rerank";
+  method: string;
   supported: boolean;
   retrieval_score?: number;
   rerank_score?: number;
@@ -106,11 +106,11 @@ export function EvidenceCard({ evidence: ev, isActive, onActivate, index = 0 }: 
             <>
               <div className="grid grid-cols-2 gap-2 mt-2 pt-2 border-t border-[var(--border)]">
                 <div className="space-y-1">
-                  <span className="text-[10px] text-muted-foreground">① 임베딩 검색</span>
+                  <span className="text-[10px] text-muted-foreground">① 검색 점수 (TF-IDF)</span>
                   <ScoreBar score={ev.retrieval_score} color="#60a5fa" />
                 </div>
                 <div className="space-y-1">
-                  <span className="text-[10px] text-muted-foreground">② 리랭커 점수</span>
+                  <span className="text-[10px] text-muted-foreground">② 재랭킹 점수</span>
                   <ScoreBar score={ev.rerank_score} color="#a78bfa" />
                 </div>
               </div>

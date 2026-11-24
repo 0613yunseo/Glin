@@ -30,9 +30,9 @@ const STEPS: { key: ExtractionStepKey; label: string; desc: string; tech: string
   },
   {
     key: "embedding_indexed",
-    label: "임베딩 인덱스",
-    desc: "KR-SBERT 벡터 인덱스 완료",
-    tech: "FAISS / ANN",
+    label: "검색 인덱스",
+    desc: "TF-IDF 검색 인덱스 완료",
+    tech: "TF-IDF",
   },
 ];
 

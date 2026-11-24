@@ -1,7 +1,7 @@
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel, ConfigDict, computed_field
 from uuid import UUID
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional
 from app.domains.documents.models import DocumentStatus
 
 
@@ -29,11 +29,11 @@ class DocumentResponse(DocumentBase):
     id: UUID
     ingested_at: datetime
     updated_at: datetime
+    lines: int = 0  # 문서 전체 라인 수
 
     model_config = ConfigDict(from_attributes=True)
 
 
-# ✅ 상세 페이지용: pages / lines 응답 스키마
 class DocumentPageResponse(BaseModel):
     id: UUID
     document_id: UUID
@@ -42,6 +42,11 @@ class DocumentPageResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def pageNo(self) -> int:  # 프론트 PageMeta 호환
+        return self.page_number
 
 
 class DocumentLineResponse(BaseModel):
@@ -53,3 +58,8 @@ class DocumentLineResponse(BaseModel):
     created_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+    @computed_field
+    @property
+    def lineNo(self) -> int:  # 프론트 Line 호환
+        return self.line_number
