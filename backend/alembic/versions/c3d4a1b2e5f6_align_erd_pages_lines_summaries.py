@@ -22,6 +22,11 @@ def _now():
 
 
 def upgrade() -> None:
+    # 예전 create_all 버전의 테이블(unique 제약 · text_len · page_id 없음)이 있으면 정리 후 ERD 구조로 다시 만든다.
+    # 이 테이블에 데이터를 쓰는 코드가 없었으므로 지워지는 데이터는 없다.
+    op.execute("DROP TABLE IF EXISTS document_lines CASCADE")
+    op.execute("DROP TABLE IF EXISTS document_pages CASCADE")
+
     op.create_table(
         "document_pages",
         sa.Column("id", sa.UUID(), nullable=False),
