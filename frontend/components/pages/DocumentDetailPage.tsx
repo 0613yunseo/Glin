@@ -538,7 +538,7 @@ export default function DocumentDetailPage() {
                 )}
 
                 <div className="mt-8 pt-4 border-t border-gray-100 dark:border-gray-700/50 flex justify-between">
-                  <span className="text-[9px] text-gray-400 dark:text-gray-600">GLIN 분석용 — 로컬 처리</span>
+                  <span className="text-[9px] text-gray-400 dark:text-gray-600">GLIN 분석용 텍스트</span>
                   <span className="text-[9px] text-gray-400 dark:text-gray-600">{currentPage} / {doc.page_count}</span>
                 </div>
               </div>

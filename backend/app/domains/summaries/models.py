@@ -113,6 +113,8 @@ class Evidence(Base):
 
     # PRD v1.1 옵션 필드
     score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    retrieval_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 검색 단계 점수
+    rerank_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)  # 재랭킹 후 점수
     method: Mapped[Optional[str]] = mapped_column(String, nullable=True)  # embed+rerank
     supported: Mapped[Optional[bool]] = mapped_column(Boolean, nullable=True)
 

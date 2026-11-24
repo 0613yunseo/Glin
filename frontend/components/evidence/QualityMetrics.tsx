@@ -2,26 +2,26 @@ import React from "react";
 import { TrendingUp, Shield, AlertTriangle } from "lucide-react";
 
 interface QualityMetricsProps {
-  precision3?: number;
+  avgScore?: number;
   evidenceCoverage?: number;
   unsupportedRate?: number;
   totalBullets?: number;
 }
 
 export function QualityMetrics({
-  precision3 = 0.847,
-  evidenceCoverage = 0.923,
-  unsupportedRate = 0.143,
-  totalBullets = 7,
+  avgScore = 0,
+  evidenceCoverage = 0,
+  unsupportedRate = 0,
+  totalBullets = 0,
 }: QualityMetricsProps) {
   const metrics = [
     {
-      label: "Precision@3",
-      value: precision3,
-      display: `${(precision3 * 100).toFixed(1)}%`,
+      label: "평균 근거 점수",
+      value: avgScore,
+      display: `${(avgScore * 100).toFixed(1)}%`,
       icon: <TrendingUp size={14} />,
       color: "#3b82f6",
-      desc: "Top-3 evidence 정밀도",
+      desc: "불릿별 최고 근거 점수의 평균",
       bg: "bg-blue-50 dark:bg-blue-950/20",
       border: "border-blue-200/60 dark:border-blue-800/40",
     },
@@ -31,7 +31,7 @@ export function QualityMetrics({
       display: `${(evidenceCoverage * 100).toFixed(1)}%`,
       icon: <Shield size={14} />,
       color: "#10b981",
-      desc: `${totalBullets}개 불릿 중 근거 매핑율`,
+      desc: `${totalBullets}개 불릿 중 근거가 붙은 비율`,
       bg: "bg-green-50 dark:bg-green-950/20",
       border: "border-green-200/60 dark:border-green-800/40",
     },
@@ -41,7 +41,7 @@ export function QualityMetrics({
       display: `${(unsupportedRate * 100).toFixed(1)}%`,
       icon: <AlertTriangle size={14} />,
       color: unsupportedRate > 0.2 ? "#ef4444" : "#f59e0b",
-      desc: "supported=false 비율",
+      desc: "지지되는 근거가 없는 불릿 비율",
       bg: unsupportedRate > 0.2 ? "bg-red-50 dark:bg-red-950/20" : "bg-yellow-50 dark:bg-yellow-950/20",
       border: unsupportedRate > 0.2 ? "border-red-200/60 dark:border-red-800/40" : "border-yellow-200/60 dark:border-yellow-800/40",
     },
@@ -51,7 +51,7 @@ export function QualityMetrics({
     <div className="rounded-xl border border-[var(--border)] bg-[var(--card)] overflow-hidden">
       <div className="px-4 py-3 border-b border-[var(--border)]">
         <p className="text-xs font-bold text-foreground">품질 지표</p>
-        <p className="text-[10px] text-muted-foreground mt-0.5">Evidence Mapping 신뢰도</p>
+        <p className="text-[10px] text-muted-foreground mt-0.5">이 요약 결과에서 계산한 값</p>
       </div>
       <div className="p-3 space-y-2">
         {metrics.map((m) => (

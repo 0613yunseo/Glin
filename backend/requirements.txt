@@ -7,3 +7,5 @@ python-dotenv
 alembic
 httpx
 requests
+pypdf
+python-multipart

@@ -126,8 +126,8 @@ export function Sidebar({ onClose }: SidebarProps) {
         >
           <Sparkles size={14} className="text-white/80 flex-shrink-0" />
           <div>
-            <p className="text-[11px] font-bold text-white leading-tight">GLIN Pro</p>
-            <p className="text-[10px] text-white/70 leading-tight">로컬 GPU 가속 활성화됨</p>
+            <p className="text-[11px] font-bold text-white leading-tight">GLIN Demo</p>
+            <p className="text-[10px] text-white/70 leading-tight">PDF 요약 · 근거 매핑</p>
           </div>
         </div>
 

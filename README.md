@@ -41,4 +41,10 @@ npm i && npm run dev
 2. Vercel 프로젝트 환경변수 `NEXT_PUBLIC_API_BASE_URL`에 Render 서비스 주소를 넣고 다시 배포합니다.
 3. 프론트 도메인이 바뀌면 Render의 `ALLOWED_ORIGINS`에 추가합니다.
 
-> 현재 구현 범위: 문서·페이지·라인 조회 API와 요약·근거 데이터 모델. PDF 추출, 요약 생성, 근거 매핑(임베딩 검색 + 재랭킹)은 설계 단계입니다.
+## 동작 방식
+
+1. **업로드** `POST /documents/upload` — PDF에서 텍스트를 뽑아 페이지/라인(결정적 번호)으로 저장합니다. 같은 파일(SHA-256)은 같은 문서로 처리합니다. 원본 PDF는 저장하지 않습니다.
+2. **요약** `GET/POST /ai/summary` — `GEMINI_API_KEY`가 있으면 Gemini로, 없으면 TF-IDF 중심성 기반 추출식 요약으로 bullet을 만듭니다.
+3. **근거 매핑** — 2~4줄 window를 만들고 TF-IDF(글자 bigram 포함) 코사인 유사도로 후보를 검색한 뒤, 핵심어 커버리지로 재랭킹해 page · line · quote를 붙입니다. 같은 입력이면 같은 결과가 나옵니다.
+
+임베딩 모델 + Cross-Encoder 재랭커는 아직 적용하지 않았고, 현재는 위의 어휘 기반 방식입니다. 한계: 스캔 PDF(OCR) 미지원, 업로드 10MB · 80페이지 제한.

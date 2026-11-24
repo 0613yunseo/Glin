@@ -35,6 +35,13 @@ export default function AnalysisPage() {
   const [error, setError] = useState<string | null>(null);
   const [summaryRun, setSummaryRun] = useState<SummaryRun | null>(null);
   const [summaryItems, setSummaryItems] = useState<SummaryItem[]>([]);
+  const metrics = (() => {
+    const n = summaryItems.length || 1;
+    const withEv = summaryItems.filter((i) => i.evidences.length > 0).length;
+    const unsupported = summaryItems.filter((i) => !i.evidences.some((e) => e.supported)).length;
+    const avgScore = summaryItems.reduce((a, i) => a + Math.max(0, ...i.evidences.map((e) => e.score)), 0) / n;
+    return { coverage: withEv / n, unsupported: unsupported / n, avgScore };
+  })();
   const [viewerLines, setViewerLines] = useState<Line[]>([]);
 
   // Summary options
@@ -577,7 +584,7 @@ export default function AnalysisPage() {
 
             {/* Mobile: Quality + Pipeline below bullets */}
             <div className="lg:hidden space-y-4 pt-2 border-t border-[var(--border)] mt-2">
-              <QualityMetrics precision3={0.847} evidenceCoverage={0.923} unsupportedRate={0.143} totalBullets={bulletCount} />
+              <QualityMetrics avgScore={metrics.avgScore} evidenceCoverage={metrics.coverage} unsupportedRate={metrics.unsupported} totalBullets={summaryItems.length} />
               <EvidenceMappingPipeline />
             </div>
           </div>
@@ -655,12 +662,7 @@ export default function AnalysisPage() {
 
           {/* Quality Metrics */}
           <div className="flex-shrink-0 border-t border-[var(--border)] p-3">
-            <QualityMetrics
-              precision3={0.847}
-              evidenceCoverage={0.923}
-              unsupportedRate={0.143}
-              totalBullets={bulletCount}
-            />
+            <QualityMetrics avgScore={metrics.avgScore} evidenceCoverage={metrics.coverage} unsupportedRate={metrics.unsupported} totalBullets={summaryItems.length} />
           </div>
 
           {/* Evidence Mapping Pipeline */}

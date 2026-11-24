@@ -25,7 +25,7 @@ export function EvidenceMappingPipeline({ defaultOpen = false }: EvidenceMapping
             Evidence Mapping Pipeline
           </p>
           <p className="text-[11px] text-muted-foreground leading-tight">
-            ML/DL 2-Stage 근거 매핑 파이프라인
+            검색 + 재랭킹 2단계 근거 매핑 파이프라인
           </p>
         </div>
         {open ? (
@@ -69,22 +69,22 @@ export function EvidenceMappingPipeline({ defaultOpen = false }: EvidenceMapping
             <div className="flex-1 rounded-xl border border-[#3b82f6]/40 bg-blue-50 dark:bg-blue-950/20 p-3.5">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-100 text-blue-700 dark:bg-blue-900/50 dark:text-blue-400">
-                  Stage 1 · ML
+                  Stage 1 · 검색
                 </span>
               </div>
-              <p className="text-xs font-bold text-foreground mb-0.5">Embedding Retrieval</p>
+              <p className="text-xs font-bold text-foreground mb-0.5">TF-IDF Retrieval</p>
               <p className="text-[11px] font-semibold text-blue-600 dark:text-blue-400 mb-2">
                 Recall 확보
               </p>
               <div className="space-y-1">
-                <p className="text-[10px] text-muted-foreground">모델: KR-SBERT</p>
-                <p className="text-[10px] text-muted-foreground">ANN 유사도 검색</p>
+                <p className="text-[10px] text-muted-foreground">방식: TF-IDF + 글자 bigram</p>
+                <p className="text-[10px] text-muted-foreground">코사인 유사도 검색</p>
                 <p className="text-[10px] text-muted-foreground">Top-K 후보 스팬 추출</p>
               </div>
               <div className="mt-2.5 flex items-center gap-1.5 p-2 rounded-lg bg-blue-100/60 dark:bg-blue-900/30">
                 <Cpu size={11} className="text-blue-500" />
                 <span className="text-[10px] text-blue-700 dark:text-blue-400 font-medium">
-                  KR-SBERT embedding
+                  TF-IDF vector
                 </span>
               </div>
             </div>
@@ -100,22 +100,22 @@ export function EvidenceMappingPipeline({ defaultOpen = false }: EvidenceMapping
             <div className="flex-1 rounded-xl border border-purple-400/40 bg-purple-50 dark:bg-purple-950/20 p-3.5">
               <div className="flex items-center gap-2 mb-2">
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 dark:bg-purple-900/50 dark:text-purple-400">
-                  Stage 2 · DL
+                  Stage 2 · 재랭킹
                 </span>
               </div>
-              <p className="text-xs font-bold text-foreground mb-0.5">Cross-Encoder Reranker</p>
+              <p className="text-xs font-bold text-foreground mb-0.5">Lexical Reranker</p>
               <p className="text-[11px] font-semibold text-purple-600 dark:text-purple-400 mb-2">
                 Precision 강화
               </p>
               <div className="space-y-1">
-                <p className="text-[10px] text-muted-foreground">모델: KoELECTRA</p>
-                <p className="text-[10px] text-muted-foreground">Cross-attention 재평가</p>
+                <p className="text-[10px] text-muted-foreground">방식: 핵심어 커버리지</p>
+                <p className="text-[10px] text-muted-foreground">짧은 구간 우선 · 중복 제거</p>
                 <p className="text-[10px] text-muted-foreground">최종 evidence 정렬</p>
               </div>
               <div className="mt-2.5 flex items-center gap-1.5 p-2 rounded-lg bg-purple-100/60 dark:bg-purple-900/30">
                 <Cpu size={11} className="text-purple-500" />
                 <span className="text-[10px] text-purple-700 dark:text-purple-400 font-medium">
-                  KoELECTRA reranker
+                  coverage reranker
                 </span>
               </div>
             </div>

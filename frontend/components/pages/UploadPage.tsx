@@ -40,12 +40,14 @@ function NotionIcon() {
   );
 }
 
+const BACKEND = (process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8000").replace(/\/+$/, "");
+
 type IngestStep = "upload" | "extract" | "ready";
 
 const INGEST_STEPS: { key: IngestStep; label: string; desc: string }[] = [
   { key: "upload", label: "업로드", desc: "PDF 파일 수신" },
   { key: "extract", label: "추출 · 라인 생성", desc: "텍스트 및 PageLine 생성" },
-  { key: "ready", label: "준비 완료", desc: "임베딩 인덱스 완료" },
+  { key: "ready", label: "준비 완료", desc: "요약 · 근거 매핑 완료" },
 ];
 
 function IngestStepper({ activeStep }: { activeStep: number }) {
@@ -111,43 +113,30 @@ export default function UploadPage() {
       setDone(false);
 
       try {
-        // ✅ 매번 유니크한 file_path로 만들어서 409 중복 방지
-        const uniquePath = `/tmp/${crypto.randomUUID()}-${file.name}`;
-
-        // ✅ 프론트(브라우저)는 백엔드 직접 호출하지 말고, Next API route로만 호출
-        const res = await fetch(`/api/documents`, {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            accept: "application/json",
-          },
-          body: JSON.stringify({
-            file_path: uniquePath,
-            file_name: file.name,
-          }),
-        });
-
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(`Upload failed: ${res.status} ${res.statusText}${text ? ` | ${text}` : ""}`);
-        }
-
-        await res.json().catch(() => null);
-
-        setProgress(60);
+        // PDF 파일을 백엔드로 직접 전송한다 (서버가 텍스트 추출 · 라인 생성까지 처리)
+        const form = new FormData();
+        form.append("file", file);
+        setProgress(30);
         setIngestStep(1);
 
-        await new Promise((r) => setTimeout(r, 300));
+        const res = await fetch(`${BACKEND}/documents/upload`, { method: "POST", body: form });
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          throw new Error(body?.detail || `${res.status} ${res.statusText}`);
+        }
+        const doc = await res.json();
+
         setProgress(85);
         setIngestStep(2);
 
-        await new Promise((r) => setTimeout(r, 200));
+        // 요약 · 근거 매핑을 한 번 만들어 둔다 (실패해도 문서는 이미 저장됨)
+        await fetch(`${BACKEND}/ai/summary/${doc.id}`).catch(() => null);
         setProgress(100);
 
         setUploading(false);
         setDone(true);
 
-        setTimeout(() => router.push("/documents"), 400);
+        setTimeout(() => router.push(`/analysis?docId=${doc.id}`), 400);
       } catch (e) {
         console.error(e);
         setUploading(false);
@@ -225,10 +214,10 @@ export default function UploadPage() {
                     </p>
                     <p className="text-xs text-muted-foreground mt-0.5">
                       {ingestStep === 0
-                        ? "레코드 생성 중..."
+                        ? "파일 전송 중..."
                         : ingestStep === 1
                           ? "텍스트 추출 · 라인 인덱싱..."
-                          : "임베딩 벡터 생성 중..."}
+                          : "요약 · 근거 매핑 중..."}
                     </p>
                   </div>
                   <div className="w-full bg-muted rounded-full h-1.5 overflow-hidden">
@@ -258,13 +247,13 @@ export default function UploadPage() {
                 PDF 파일을 드래그하거나 클릭하여 업로드
               </p>
               <p className="text-sm text-muted-foreground mb-5">
-                PDF 전용 · 최대 200MB · 로컬 처리
+                PDF 전용 · 최대 10MB · 텍스트가 있는 PDF
               </p>
 
               <div className="grid grid-cols-2 sm:flex sm:flex-wrap gap-2 sm:gap-4 sm:justify-center w-full sm:w-auto">
                 {[
-                  { icon: <Zap size={13} />, label: "평균 처리 12초" },
-                  { icon: <Brain size={13} />, label: "한국어 ML 모델" },
+                  { icon: <Zap size={13} />, label: "자동 요약" },
+                  { icon: <Brain size={13} />, label: "TF-IDF 근거 검색" },
                   { icon: <FilePlus size={13} />, label: "라인 근거 매핑" },
                   { icon: <HardDrive size={13} />, label: ".pdf 전용" },
                 ].map((f) => (

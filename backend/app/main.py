@@ -7,6 +7,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.domains.documents import router as documents_router
 from app.domains.users.router import router as users_router
+from app.domains.summaries import router as summaries_router
 
 # 모델을 import해 두어야 Alembic이 전체 테이블을 인식한다. (테이블 생성은 `alembic upgrade head`가 담당)
 from app.domains.documents import models as _document_models  # noqa: F401
@@ -34,6 +35,7 @@ app.add_middleware(
 
 app.include_router(documents_router.router)
 app.include_router(users_router)
+app.include_router(summaries_router.router)
 
 
 @app.get("/supabase-test")

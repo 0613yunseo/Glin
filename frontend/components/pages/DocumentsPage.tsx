@@ -87,10 +87,10 @@ export default function DocumentsPage() {
           id: d.id,
           file_name: d.file_name,
           page_count: d.page_count,
-          status: (d.status === "failed" ? "error" : d.status) || "ready",
-          updated_at: d.ingested_at || "-",
+          status: (({ INGESTED: "ready", PROCESSING: "processing", FAILED: "error", failed: "error" } as Record<string, DocumentListItem["status"]>)[String(d.status)] ?? "ready"),
+          updated_at: d.ingested_at ? new Date(d.ingested_at).toLocaleString("ko-KR", { dateStyle: "medium", timeStyle: "short" }) : "-",
           lines: d.lines || 0,
-          size: d.size || "0 KB",
+          size: d.size || "",
         }));
 
         setDocuments(mappedDocs);
@@ -251,7 +251,7 @@ export default function DocumentsPage() {
                           {doc.lines > 0 && (
                             <span className="text-[10px] text-muted-foreground">{doc.lines.toLocaleString()}줄</span>
                           )}
-                          <span className="text-[10px] text-muted-foreground">{doc.size}</span>
+                          {doc.size && <span className="text-[10px] text-muted-foreground">{doc.size}</span>}
                         </div>
                       </div>
                     </div>
@@ -379,7 +379,7 @@ export default function DocumentsPage() {
                         {doc.lines.toLocaleString()}줄
                       </span>
                     )}
-                    <span className="text-xs text-muted-foreground">{doc.size}</span>
+                    {doc.size && <span className="text-xs text-muted-foreground">{doc.size}</span>}
                   </div>
 
                   <button
