@@ -16,25 +16,20 @@ if config.config_file_name is not None:
 BASE_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))  # backend/
 ENV_PATH = os.path.join(BASE_DIR, ".env")
 
-print(">>> ALEMBIC ENV_PATH:", ENV_PATH)
-load_dotenv(dotenv_path=ENV_PATH, override=True, encoding="utf-8")
+load_dotenv(dotenv_path=ENV_PATH, override=False, encoding="utf-8")
 
 DATABASE_URL = os.getenv("DATABASE_URL")
-print(">>> ALEMBIC DATABASE_URL repr:", repr(DATABASE_URL))
-print(
-    ">>> ALEMBIC DATABASE_URL bytes:",
-    DATABASE_URL.encode("utf-8", errors="backslashreplace") if DATABASE_URL else None,
-)
-
 if not DATABASE_URL:
     raise RuntimeError("DATABASE_URL is not set. Check backend/.env")
 
-# ✅ Force Alembic to use DATABASE_URL
-config.set_main_option("sqlalchemy.url", DATABASE_URL)
+from app.core.database import Base, normalize_db_url  # noqa: E402
 
-# --- Import Base + models for autogenerate ---
-from app.core.database import Base  # noqa: E402
-from app.domains.documents.models import Document  # noqa: F401, E402  (ensure model is registered)
+# Force Alembic to use DATABASE_URL (postgres:// 형식도 허용, % 는 configparser 때문에 이스케이프)
+config.set_main_option("sqlalchemy.url", normalize_db_url(DATABASE_URL).replace("%", "%%"))
+
+# --- Import models for autogenerate ---
+from app.domains.documents import models as _document_models  # noqa: F401, E402
+from app.domains.summaries import models as _summary_models  # noqa: F401, E402
 
 target_metadata = Base.metadata
 
